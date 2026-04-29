@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Physics-16 // SANDBOX</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        body { 
+            margin: 0; background: #080808; overflow: hidden;
+            font-family: 'Press Start 2P', cursive; cursor: none;
+        }
+
+        /* SCANLINE & PIXEL GRID */
+        #crt {
+            position: fixed; inset: 0; pointer-events: none; z-index: 100;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%),
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+            background-size: 100% 4px, 3px 100%;
+        }
+
+        canvas { display: block; image-rendering: pixelated; }
+
+        .menu {
+            position: fixed; inset: 0; background: #000;
+            display: flex; flex-direction: column; align-items: center; 
+            justify-content: center; z-index: 200; color: #fff; text-align: center;
+        }
+
+        #tutorial-card {
+            background: #111; border: 4px solid #00f2ff;
+            padding: 30px; max-width: 600px; margin-bottom: 20px;
+        }
+
+        #ui-bar {
+            position: absolute; top: 0; width: 100%; height: 50px;
+            display: flex; align-items: center; justify-content: space-around;
+            background: rgba(0,0,0,0.9); border-bottom: 2px solid #ff0055; 
+            font-size: 8px; z-index: 50; color: #fff;
+        }
+
+        .btn {
+            background: #222; border: 2px solid #fff; color: #fff;
+            padding: 10px; margin: 5px; font-family: 'Press Start 2P';
+            cursor: pointer; font-size: 8px;
+        }
+        .btn:hover { background: #fff; color: #000; }
+
+        #crosshair {
+            position: fixed; width: 30px; height: 30px;
+            pointer-events: none; z-index: 400; transform: translate(-50%, -50%);
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* CROSSHAIR STYLES */
+        .ch-box { border: 2px solid #00f2ff; width: 100%; height: 100%; }
+        .ch-circle { border: 2px solid #ff0055; border-radius: 50%; width: 100%; height: 100%; }
+        .ch-plus::before { content: '+'; color: #fff; font-size: 24px; }
+        .ch-target { border: 2px dashed #fff; border-radius: 50%; width: 100%; height: 100%; animation: spin 2s linear infinite; }
+        
+        @keyframes spin { from {transform: rotate(0deg)} to {transform: rotate(360deg)} }
+        .shake { animation: shake 0.1s infinite; }
+        @keyframes shake { 0%{transform:translate(2px,2px)} 50%{transform:translate(-2px,-2px)} }
+    </style>
+</head>
+<body>
+
+    <div id="crt"></div>
+    <div id="crosshair"><div id="ch-style" class="ch-box"></div></div>
+
+    <div id="main-menu" class="menu">
+        <h1 style="color: #ff0055; font-size: 40px;">PHYSICS-16</h1>
+        <div id="tutorial-card">
+            <h2 style="font-size: 10px; color: #00f2ff;">SANDBOX MANUAL</h2>
+            <p style="font-size: 8px; text-align: left; line-height: 2;">
+                > CLICK TO SPAWN PHYSICS BLOCKS.<br>
+                > RIGHT CLICK TO TRIGGER EXPLOSION.<br>
+                > PRESS [G] TO FLIP GRAVITY.<br>
+                > PRESS [C] TO CLEAR THE STAGE.<br>
+                > EARN BYTES BY HITTING THE "GOLDEN BLOCKS."
+            </p>
+        </div>
+        <button class="btn" onclick="initSandbox()" style="font-size: 14px;">[ LOAD ENGINE ]</button>
+    </div>
+
+    <div id="pause-menu" class="menu" style="display:none;">
+        <h2 style="color:#00f2ff">TOOL_MODIFIER</h2>
+        <p style="color:yellow">BYTES: <span id="shop-bytes">0</span></p>
+        <div style="margin-bottom: 20px;">
+            <p style="font-size:8px;">CROSSHAIRS (50B)</p>
+            <button class="btn" onclick="setCH('box')">SQUARE</button>
+            <button class="btn" onclick="setCH('circle')">VIRTUAL</button>
+            <button class="btn" onclick="setCH('plus')">SNIPER</button>
+            <button class="btn" onclick="setCH('target')">RADAR</button>
+        </div>
+        <button class="btn" onclick="togglePause()">RESUME</button>
+    </div>
+
+    <div id="ui-bar">
+        <div>BYTES: <span id="byte-count">0</span></div>
+        <div id="grav-txt">GRAVITY: DOWN</div>
+        <div>OBJECTS: <span id="obj-count">0</span></div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const crosshair = document.getElementById('crosshair');
+    const chStyle = document.getElementById('ch-style');
+    
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let bytes = 0, gameActive = false, isPaused = false;
+    let blocks = [], particles = [];
+    let gravity = { x: 0, y: 0.5 };
+    let ownedCH = ['box'];
+
+    // SOUNDS
+    const audio = new (window.AudioContext || window.webkitAudioContext)();
+    function playSfx(f, type, d) {
+        const o = audio.createOscillator(); const g = audio.createGain();
+        o.type = type; o.frequency.value = f; g.gain.value = 0.1;
+        g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + d);
+        o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + d);
+    }
+
+    window.addEventListener('mousemove', e => {
+        crosshair.style.left = e.clientX + 'px';
+        crosshair.style.top = e.clientY + 'px';
+    });
+
+    window.addEventListener('keydown', e => {
+        if(e.key.toLowerCase() === 'p') togglePause();
+        if(e.key.toLowerCase() === 'g') flipGravity();
+        if(e.key.toLowerCase() === 'c') blocks = [];
+    });
+
+    function setCH(type) {
+        if(ownedCH.includes(type)) { chStyle.className = "ch-" + type; }
+        else if(bytes >= 50) { bytes -= 50; ownedCH.push(type); chStyle.className = "ch-" + type; updateUI(); }
+    }
+
+    function flipGravity() {
+        gravity.y *= -1;
+        document.getElementById('grav-txt').innerText = gravity.y > 0 ? "GRAVITY: DOWN" : "GRAVITY: UP";
+        playSfx(100, 'sine', 0.5);
+    }
+
+    function initSandbox() {
+        if(audio.state === 'suspended') audio.resume();
+        document.getElementById('main-menu').style.display = 'none';
+        gameActive = true;
+        requestAnimationFrame(loop);
+    }
+
+    canvas.addEventListener('mousedown', e => {
+        if(!gameActive || isPaused) return;
+        
+        if(e.button === 0) { // Left click: Spawn
+            for(let i=0; i<3; i++) {
+                blocks.push({
+                    x: e.clientX, y: e.clientY,
+                    vx: (Math.random()-0.5)*15, vy: (Math.random()-0.5)*15,
+                    size: 15 + Math.random()*20,
+                    color: Math.random() > 0.9 ? '#ffd700' : '#00f2ff',
+                    isGold: Math.random() > 0.9,
+                    rot: 0, vr: (Math.random()-0.5)*0.2
+                });
+            }
+            playSfx(400, 'square', 0.1);
+        }
+    });
+
+    // Right Click for Explosion
+    canvas.oncontextmenu = (e) => {
+        e.preventDefault();
+        blocks.forEach(b => {
+            let dx = b.x - e.clientX; let dy = b.y - e.clientY;
+            let dist = Math.hypot(dx, dy);
+            if(dist < 200) {
+                b.vx += (dx/dist) * 20; b.vy += (dy/dist) * 20;
+            }
+        });
+        playSfx(80, 'sawtooth', 0.5);
+        document.body.classList.add('shake');
+        setTimeout(() => document.body.classList.remove('shake'), 100);
+    };
+
+    function togglePause() {
+        isPaused = !isPaused;
+        document.getElementById('pause-menu').style.display = isPaused ? 'flex' : 'none';
+        document.getElementById('shop-bytes').innerText = bytes;
+    }
+
+    function updateUI() {
+        document.getElementById('byte-count').innerText = bytes;
+        document.getElementById('obj-count').innerText = blocks.length;
+    }
+
+    function loop() {
+        if(gameActive && !isPaused) {
+            update(); draw();
+        }
+        requestAnimationFrame(loop);
+    }
+
+    function update() {
+        blocks.forEach((b, i) => {
+            b.vx += gravity.x; b.vy += gravity.y;
+            b.x += b.vx; b.y += b.vy;
+            b.rot += b.vr;
+
+            // Bounce Floor/Ceiling
+            if(b.y > canvas.height - b.size/2) { b.y = canvas.height - b.size/2; b.vy *= -0.6; b.vx *= 0.9; }
+            if(b.y < b.size/2) { b.y = b.size/2; b.vy *= -0.6; }
+            
+            // Bounce Walls
+            if(b.x > canvas.width - b.size/2) { b.x = canvas.width - b.size/2; b.vx *= -0.6; }
+            if(b.x < b.size/2) { b.x = b.size/2; b.vx *= -0.6; }
+
+            // Earn Bytes from gold blocks hitting floor
+            if(b.isGold && Math.abs(b.vy) > 2 && b.y > canvas.height - b.size - 5) {
+                bytes += 1; b.isGold = false; b.color = '#fff'; updateUI();
+            }
+        });
+        
+        // Optimization: Cap blocks
+        if(blocks.length > 150) blocks.shift();
+    }
+
+    function draw() {
+        ctx.fillStyle = '#080808';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+
+        blocks.forEach(b => {
+            ctx.save();
+            ctx.translate(b.x, b.y);
+            ctx.rotate(b.rot);
+            ctx.fillStyle = b.color;
+            ctx.fillRect(-b.size/2, -b.size/2, b.size, b.size);
+            // Shadow effect
+            ctx.strokeStyle = '#000';
+            ctx.strokeRect(-b.size/2, -b.size/2, b.size, b.size);
+            ctx.restore();
+        });
+    }
+</script>
+</body>
+</html>
