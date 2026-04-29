@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Physics-16 // COLLIDE</title>
+    <title>Physics-16 // ARCHITECT</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
@@ -12,7 +12,7 @@
         }
 
         #crt {
-            position: fixed; inset: 0; pointer-events: none; z-index: 100;
+            position: fixed; inset: 0; pointer-events: none; z-index: 1000;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%),
                         linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
             background-size: 100% 4px, 3px 100%;
@@ -20,221 +20,217 @@
 
         canvas { display: block; image-rendering: pixelated; }
 
-        .menu {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.95);
-            display: flex; flex-direction: column; align-items: center; 
-            justify-content: center; z-index: 200; color: #fff; text-align: center;
+        /* TOOLBAR BOTTOM LEFT */
+        #toolbar {
+            position: fixed; bottom: 20px; left: 20px;
+            display: flex; flex-direction: column; gap: 10px;
+            background: rgba(0,0,0,0.8); border: 2px solid #fff;
+            padding: 15px; z-index: 500;
         }
 
+        .tool-label { font-size: 8px; color: #00f2ff; margin-bottom: 5px; }
+        .mode-indicator { font-size: 10px; color: #ff0055; margin-top: 5px; }
+
         #ui-bar {
-            position: absolute; top: 0; width: 100%; height: 50px;
+            position: absolute; top: 0; width: 100%; height: 40px;
             display: flex; align-items: center; justify-content: space-around;
             background: rgba(0,0,0,0.8); border-bottom: 2px solid #fff; 
-            font-size: 8px; z-index: 50; color: #fff;
+            font-size: 8px; z-index: 500; color: #fff;
+        }
+
+        .menu {
+            position: fixed; inset: 0; background: #000;
+            display: flex; flex-direction: column; align-items: center; 
+            justify-content: center; z-index: 2000; color: #fff;
         }
 
         .btn {
             background: #222; border: 2px solid #fff; color: #fff;
-            padding: 12px; margin: 5px; font-family: 'Press Start 2P';
-            cursor: pointer; font-size: 10px;
+            padding: 10px; font-family: 'Press Start 2P'; font-size: 10px; cursor: pointer;
         }
         .btn:hover { background: #fff; color: #000; }
 
-        #shape-indicator {
-            position: fixed; bottom: 20px; left: 20px; color: #00f2ff; font-size: 10px; z-index: 50;
-            background: rgba(0,0,0,0.5); padding: 5px;
-        }
+        .shake { animation: shake 0.1s infinite; }
+        @keyframes shake { 0%{transform:translate(2px,2px)} 50%{transform:translate(-2px,-2px)} }
     </style>
 </head>
 <body>
 
-    <div id="crt"></div>
-    <div id="shape-indicator">SHAPE: SQUARE (4)</div>
+<div id="crt"></div>
 
-    <div id="main-menu" class="menu">
-        <h1 style="color: #ff0055; font-size: 40px;">PHYSICS-16</h1>
-        <div style="background:#111; padding:25px; border:4px double #fff; font-size:9px; line-height:2; max-width:600px;">
-            <p style="color:#00f2ff">== OPERATOR INSTRUCTIONS ==</p>
-            > [0-5]: SWAP SHAPES (Circle to Pentagon)<br>
-            > [LEFT CLICK]: SPAWN OBJECTS<br>
-            > [RIGHT CLICK]: TRIGGER SHOCKWAVE<br>
-            > [G]: REVERSE GRAVITY<br>
-            > [ESC]: CHANGE SYSTEM STYLES (FREE)
-        </div>
-        <button class="btn" onclick="start()" style="margin-top:25px;">[ BOOT_SANDBOX ]</button>
-    </div>
+<div id="toolbar">
+    <div class="tool-label">SENSORS: ACTIVE</div>
+    <div id="shape-name" style="font-size:9px;">SHAPE: SQUARE (4)</div>
+    <div id="build-mode" class="mode-indicator">MODE: CHAOS</div>
+    <div style="font-size:7px; color:#aaa; margin-top:5px;">[C] FINE BUILD | [G] GRAVITY</div>
+</div>
 
-    <div id="pause-menu" class="menu" style="display:none;">
-        <h2 style="color:#00f2ff">SYSTEM_STYLES</h2>
-        <div id="style-grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px; margin:20px;">
-            </div>
-        <button class="btn" onclick="togglePause()">RESUME</button>
-    </div>
+<div id="ui-bar">
+    <div>ENTITIES: <span id="obj-count">0</span></div>
+    <div id="grav-txt">GRAVITY: 1.0G</div>
+    <div>STABILITY: NOMINAL</div>
+</div>
 
-    <div id="ui-bar">
-        <div>OBJECTS: <span id="obj-count">0</span></div>
-        <div id="grav-txt" style="color:#ff0055">GRAVITY: DOWN</div>
-        <div>PHYSICS-16 v2.0</div>
-    </div>
+<div id="main-menu" class="menu">
+    <h1 style="color:#00f2ff">PHYSICS-16</h1>
+    <p style="font-size:8px; line-height:1.8;">PRESS [C] FOR PRECISION GIZMOS</p>
+    <button class="btn" onclick="start()">INITIATE</button>
+</div>
 
-    <canvas id="gameCanvas"></canvas>
+<div id="pause-menu" class="menu" style="display:none;">
+    <h2>SYSTEM_STYLES</h2>
+    <div id="style-grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;"></div>
+    <button class="btn" onclick="togglePause()" style="margin-top:20px;">RESUME</button>
+</div>
+
+<canvas id="gameCanvas"></canvas>
 
 <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-    let gameActive = false, isPaused = false;
-    let entities = [];
-    let gravity = 0.5;
-    let activeShape = 4; // Default Square
+let entities = [], shocks = [], particles = [];
+let gameActive = false, isPaused = false, fineBuild = false;
+let gravity = 0.4, activeShape = 4;
 
-    const THEMES = [
-        { name: "CYBER", bg: "#000", primary: "#00f2ff", secondary: "#ff0055" },
-        { name: "RETRO", bg: "#2d142c", primary: "#ee4540", secondary: "#801336" },
-        { name: "MATRIX", bg: "#000", primary: "#00ff41", secondary: "#003b00" },
-        { name: "GOLD", bg: "#1a1a00", primary: "#ffd700", secondary: "#fff" },
-        { name: "GHOST", bg: "#fff", primary: "#222", secondary: "#aaa" },
-        { name: "VAPOR", bg: "#1a002e", primary: "#ff71ce", secondary: "#01cdfe" }
-    ];
-    let currentTheme = THEMES[0];
+const THEMES = [
+    { name: "NEON", bg: "#000", p: "#00f2ff", s: "#ff0055" },
+    { name: "PAPER", bg: "#f0f0f0", p: "#000", s: "#555" },
+    { name: "VOID", bg: "#050010", p: "#7000ff", s: "#00ffcc" }
+];
+let theme = THEMES[0];
 
-    // Populate Styles
-    const styleGrid = document.getElementById('style-grid');
-    THEMES.forEach(t => {
-        const b = document.createElement('button');
-        b.className = 'btn'; b.innerText = t.name;
-        b.onclick = () => { currentTheme = t; togglePause(); };
-        styleGrid.appendChild(b);
-    });
+// Audio
+const audio = new (window.AudioContext || window.webkitAudioContext)();
+function play(f, t, d, v=0.1) {
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.type = t; o.frequency.value = f; g.gain.value = v;
+    g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + d);
+    o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + d);
+}
 
-    function start() {
-        document.getElementById('main-menu').style.display = 'none';
-        gameActive = true;
-        loop();
+// Styles Menu
+const grid = document.getElementById('style-grid');
+THEMES.forEach(t => {
+    const b = document.createElement('button'); b.className = 'btn'; b.innerText = t.name;
+    b.onclick = () => { theme = t; togglePause(); }; grid.appendChild(b);
+});
+
+function start() { document.getElementById('main-menu').style.display = 'none'; gameActive = true; loop(); }
+function togglePause() { isPaused = !isPaused; document.getElementById('pause-menu').style.display = isPaused ? 'flex' : 'none'; }
+
+window.addEventListener('keydown', e => {
+    if(e.key === 'Escape') togglePause();
+    if(e.key === 'g') { gravity *= -1; play(150, 'sine', 0.3); }
+    if(e.key === 'c') { 
+        fineBuild = !fineBuild; 
+        document.getElementById('build-mode').innerText = fineBuild ? "MODE: FINE BUILD" : "MODE: CHAOS";
+        document.getElementById('build-mode').style.color = fineBuild ? "#00ff41" : "#ff0055";
+        play(600, 'square', 0.1);
     }
-
-    function togglePause() {
-        if(!gameActive) return;
-        isPaused = !isPaused;
-        document.getElementById('pause-menu').style.display = isPaused ? 'flex' : 'none';
+    if(/[0-9]/.test(e.key)) {
+        activeShape = parseInt(e.key);
+        const names = ["CIRCLE", "DOT", "LINE", "TRI", "SQR", "PENT", "HEX", "HEPT", "OCT", "NONA"];
+        document.getElementById('shape-name').innerText = `SHAPE: ${names[activeShape]} (${e.key})`;
+        play(800, 'sine', 0.05);
     }
+});
 
-    window.addEventListener('keydown', e => {
-        if(e.key === 'Escape') togglePause();
-        if(e.key === 'g' || e.key === 'G') {
-            gravity *= -1;
-            document.getElementById('grav-txt').innerText = gravity > 0 ? "GRAVITY: DOWN" : "GRAVITY: UP";
-        }
-        if(['0','1','2','3','4','5'].includes(e.key)) {
-            activeShape = parseInt(e.key);
-            const names = ["CIRCLE", "DOT", "LINE", "TRIANGLE", "SQUARE", "PENTAGON"];
-            document.getElementById('shape-indicator').innerText = `SHAPE: ${names[activeShape]} (${e.key})`;
-        }
+canvas.addEventListener('mousedown', e => {
+    if(!gameActive || isPaused) return;
+    if(e.button === 0) spawn(e.clientX, e.clientY);
+});
+
+canvas.oncontextmenu = (e) => {
+    e.preventDefault();
+    shocks.push({ x: e.clientX, y: e.clientY, r: 10, max: 200 });
+    entities.forEach(b => {
+        let dx = b.x - e.clientX, dy = b.y - e.clientY, d = Math.hypot(dx, dy);
+        if(d < 200) { b.vx += (dx/d)*25; b.vy += (dy/d)*25; }
     });
+    play(60, 'sawtooth', 0.6, 0.2);
+    document.body.classList.add('shake');
+    setTimeout(() => document.body.classList.remove('shake'), 150);
+};
 
-    canvas.addEventListener('mousedown', e => {
-        if(!gameActive || isPaused) return;
-        if(e.button === 0) spawn(e.clientX, e.clientY);
-    });
-
-    canvas.oncontextmenu = (e) => {
-        e.preventDefault();
-        entities.forEach(b => {
-            let dx = b.x - e.clientX; let dy = b.y - e.clientY;
-            let dist = Math.hypot(dx, dy);
-            if(dist < 300) { b.vx += (dx/dist)*20; b.vy += (dy/dist)*20; }
+function spawn(x, y) {
+    let count = fineBuild ? 1 : 3;
+    for(let i=0; i<count; i++) {
+        entities.push({
+            x, y, vx: fineBuild ? 0 : (Math.random()-0.5)*15, vy: fineBuild ? 0 : (Math.random()-0.5)*15,
+            size: fineBuild ? 40 : 15 + Math.random()*25, type: activeShape,
+            rot: 0, vr: fineBuild ? 0 : (Math.random()-0.5)*0.2
         });
-    };
-
-    function spawn(x, y) {
-        for(let i=0; i<2; i++) { // Spawn 2 at a time for chaos
-            entities.push({
-                x, y, vx: (Math.random()-0.5)*15, vy: (Math.random()-0.5)*15,
-                size: 15 + Math.random()*25, type: activeShape,
-                rot: 0, vr: (Math.random()-0.5)*0.15
-            });
-        }
     }
+    play(fineBuild ? 300 : 400, 'square', 0.1);
+}
 
-    function drawPolygon(ctx, b) {
-        ctx.beginPath();
-        if(b.type === 0) { // Circle
-            ctx.arc(0, 0, b.size/2, 0, Math.PI*2);
-        } else if(b.type === 1) { // Dot
-            ctx.rect(-3, -3, 6, 6);
-        } else if(b.type === 2) { // Line
-            ctx.rect(-b.size/2, -3, b.size, 6);
-        } else { // Poly
-            let sides = b.type;
-            for(let i=0; i<sides; i++) {
-                let angle = (i/sides) * Math.PI * 2;
-                let px = Math.cos(angle) * (b.size/2);
-                let py = Math.sin(angle) * (b.size/2);
-                if(i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+function update() {
+    // Shocks
+    shocks.forEach((s, i) => { s.r += 15; if(s.r > s.max) shocks.splice(i, 1); });
+
+    // Entities
+    for(let i=0; i<entities.length; i++) {
+        let b = entities[i];
+        if(!fineBuild || (fineBuild && Math.abs(b.vx) > 0.1)) {
+            b.vy += gravity; b.vx *= 0.99; b.vy *= 0.99;
+        }
+        b.x += b.vx; b.y += b.vy; b.rot += b.vr;
+
+        if(b.y > canvas.height - b.size/2) { b.y = canvas.height - b.size/2; b.vy *= -0.5; b.vx *= 0.8; }
+        if(b.x < b.size/2 || b.x > canvas.width - b.size/2) { b.vx *= -0.8; b.x = b.x < b.size/2 ? b.size/2 : canvas.width - b.size/2; }
+
+        for(let j=i+1; j<entities.length; j++) {
+            let b2 = entities[j], dx = b2.x - b.x, dy = b2.y - b.y, d = Math.hypot(dx, dy), min = (b.size+b2.size)/2;
+            if(d < min) {
+                let ang = Math.atan2(dy, dx), tx = b.x + Math.cos(ang)*min, ty = b.y + Math.sin(ang)*min;
+                let ax = (tx - b2.x)*0.5, ay = (ty - b2.y)*0.5;
+                b.vx -= ax; b.vy -= ay; b2.vx += ax; b2.vy += ay;
             }
         }
-        ctx.closePath();
-        ctx.fill(); ctx.stroke();
     }
+    if(entities.length > 150) entities.shift();
+    document.getElementById('obj-count').innerText = entities.length;
+}
 
-    function update() {
-        for(let i=0; i<entities.length; i++) {
-            let b = entities[i];
-            b.vy += gravity;
-            b.x += b.vx; b.y += b.vy;
-            b.rot += b.vr;
+function draw() {
+    ctx.fillStyle = theme.bg; ctx.fillRect(0,0,canvas.width,canvas.height);
 
-            // Screen Bounds
-            if(b.x < b.size/2) { b.x = b.size/2; b.vx *= -0.6; }
-            if(b.x > canvas.width - b.size/2) { b.x = canvas.width - b.size/2; b.vx *= -0.6; }
-            if(b.y < b.size/2) { b.y = b.size/2; b.vy *= -0.6; }
-            if(b.y > canvas.height - b.size/2) { b.y = canvas.height - b.size/2; b.vy *= -0.6; b.vx *= 0.98; }
+    // Shockwaves
+    shocks.forEach(s => {
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+        ctx.strokeStyle = theme.p; ctx.lineWidth = (1 - s.r/s.max)*5; ctx.stroke();
+    });
 
-            // Collision (Circle vs Circle math for all shapes for speed)
-            for(let j=i+1; j<entities.length; j++) {
-                let b2 = entities[j];
-                let dx = b2.x - b.x;
-                let dy = b2.y - b.y;
-                let dist = Math.sqrt(dx*dx + dy*dy);
-                let min = (b.size/2) + (b2.size/2);
-                
-                if(dist < min) {
-                    let angle = Math.atan2(dy, dx);
-                    let tx = b.x + Math.cos(angle) * min;
-                    let ty = b.y + Math.sin(angle) * min;
-                    let ax = (tx - b2.x) * 0.4;
-                    let ay = (ty - b2.y) * 0.4;
-                    b.vx -= ax; b.vy -= ay;
-                    b2.vx += ax; b2.vy += ay;
-                }
-            }
-        }
-        if(entities.length > 150) entities.shift();
-        document.getElementById('obj-count').innerText = entities.length;
-    }
-
-    function draw() {
-        ctx.fillStyle = currentTheme.bg;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    entities.forEach(b => {
+        ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot);
+        ctx.fillStyle = theme.p; ctx.strokeStyle = theme.s; ctx.lineWidth = 2;
         
-        entities.forEach(b => {
-            ctx.save();
-            ctx.translate(b.x, b.y);
-            ctx.rotate(b.rot);
-            ctx.fillStyle = currentTheme.primary;
-            ctx.strokeStyle = currentTheme.secondary;
-            ctx.lineWidth = 3;
-            drawPolygon(ctx, b);
-            ctx.restore();
-        });
-    }
+        // Gizmos for Fine Build
+        if(fineBuild) {
+            ctx.strokeStyle = "#fff"; ctx.setLineDash([2, 2]);
+            ctx.strokeRect(-b.size/2-5, -b.size/2-5, b.size+10, b.size+10);
+            ctx.setLineDash([]);
+        }
 
-    function loop() {
-        if(gameActive && !isPaused) { update(); draw(); }
-        requestAnimationFrame(loop);
-    }
+        ctx.beginPath();
+        if(b.type === 0) ctx.arc(0,0,b.size/2,0,Math.PI*2);
+        else if(b.type === 1) ctx.rect(-2,-2,4,4);
+        else if(b.type === 2) ctx.rect(-b.size/2,-2,b.size,4);
+        else {
+            for(let i=0; i<b.type; i++) {
+                let a = (i/b.type)*Math.PI*2, px = Math.cos(a)*b.size/2, py = Math.sin(a)*b.size/2;
+                if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+            }
+        }
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.restore();
+    });
+}
+
+function loop() { if(gameActive && !isPaused) { update(); draw(); } requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
