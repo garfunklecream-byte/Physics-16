@@ -2,43 +2,34 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Physics-16 // MAYHEM</title>
+    <title>Physics-16 // ARMAGEDDON</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-        body { margin: 0; background: #050508; overflow: hidden; font-family: 'Press Start 2P', cursive; cursor: crosshair; }
+        body { margin: 0; background: #050005; overflow: hidden; font-family: 'Press Start 2P', cursive; cursor: crosshair; }
         #crt { position: fixed; inset: 0; pointer-events: none; z-index: 1000; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0,0,0,0.1) 50%), linear-gradient(90deg, rgba(255,0,0,0.03), rgba(0,255,0,0.01), rgba(0,0,255,0.03)); background-size: 100% 4px, 4px 100%; }
         canvas { display: block; image-rendering: pixelated; }
         
         #hud {
-            position: fixed; bottom: 20px; left: 20px; width: 350px; padding: 15px;
-            background: rgba(10, 10, 30, 0.9); border: 2px solid #ff0055; color: #fff; z-index: 500;
-            box-shadow: 0 0 20px rgba(255, 0, 85, 0.4);
+            position: fixed; bottom: 20px; left: 20px; width: 420px; padding: 15px;
+            background: rgba(30, 0, 10, 0.9); border: 2px solid #ff0055; color: #fff; z-index: 500;
         }
-        .stat { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 8px; }
-        .key-hint { color: #00f2ff; }
-        
-        .menu { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; color: #fff; }
-        .btn { background: transparent; border: 2px solid #ff0055; color: #ff0055; padding: 15px 30px; font-family: 'Press Start 2P'; font-size: 12px; cursor: pointer; transition: 0.2s; }
-        .btn:hover { background: #ff0055; color: #fff; box-shadow: 0 0 30px #ff0055; }
+        .stat { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 7px; line-height: 1.5; }
+        .key-hint { color: #ff0055; font-weight: bold; }
+        #warning { color: #00ff41; font-size: 8px; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px; }
     </style>
 </head>
 <body>
 <div id="crt"></div>
 
 <div id="hud">
-    <div style="font-size: 12px; color: #ff0055; margin-bottom: 10px; border-bottom: 1px solid #ff0055;">P16_MAYHEM_CORE</div>
-    <div class="stat"><span>SPAWN OBJECT:</span> <span class="key-hint">[V]</span></div>
-    <div class="stat"><span>SHOCKWAVE:</span> <span class="key-hint">[B]</span></div>
-    <div class="stat"><span>BLACK HOLE:</span> <span class="key-hint">[HOLD SPACE]</span></div>
-    <div class="stat"><span>SLOW MOTION:</span> <span class="key-hint">[SHIFT]</span></div>
-    <div class="stat"><span>FOUNTAIN:</span> <span class="key-hint">[F]</span></div>
-    <div class="stat"><span>DRAG / THROW:</span> <span class="key-hint">[HOLD X]</span></div>
-    <div class="stat"><span>CLEAR ALL:</span> <span class="key-hint">[R]</span></div>
-</div>
-
-<div id="main-menu" class="menu">
-    <h1 style="color:#ff0055; text-shadow: 0 0 15px #ff0055; font-size: 40px;">PHYSICS-16</h1>
-    <button class="btn" onclick="start()">ENTER THE VOID</button>
+    <div style="font-size: 10px; color: #ff0055; margin-bottom: 10px; border-bottom: 1px solid #ff0055; padding-bottom: 5px;">MAYHEM_OS v7.0 // NO_CAP</div>
+    <div class="stat"><span>[L-CLICK] SPAWN | [R-CLICK] EXPLODE</span></div>
+    <div class="stat"><span>[1] NUKE (ALL-MAP)</span> <span class="key-hint">[2] BLACK HOLE</span></div>
+    <div class="stat"><span>[3] ZERO-G TOGGLE</span> <span class="key-hint">[4] TIME FREEZE</span></div>
+    <div class="stat"><span>[5] SHAPE RAIN</span> <span class="key-hint">[6] IMPLOSION</span></div>
+    <div class="stat"><span>[7] SCALE UP</span> <span class="key-hint">[8] SCALE DOWN</span></div>
+    <div class="stat"><span>[9] DELETE ALL</span> <span class="key-hint">[0] RESET GRAVITY</span></div>
+    <div id="warning">SYSTEM STATUS: UNLIMITED ENTITIES</div>
 </div>
 
 <canvas id="gameCanvas"></canvas>
@@ -48,69 +39,81 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
-let entities = [], shocks = [], sparks = [];
-let gameActive = false, mouse = {x:0, y:0}, keys = {};
-let timeScale = 1, gravity = 0.5, activeShape = 4;
+let entities = [], shocks = [];
+let mouse = {x:0, y:0}, currentSize = 30, paused = false;
+let gravity = 0.5;
 
-function start() { document.getElementById('main-menu').style.display = 'none'; gameActive = true; loop(); }
+window.oncontextmenu = (e) => {
+    e.preventDefault();
+    triggerExplosion(e.clientX, e.clientY, 300, 30);
+};
+
+window.onmousedown = (e) => {
+    if(e.button === 0) spawn(e.clientX, e.clientY);
+};
 
 window.onkeydown = e => { 
-    keys[e.key.toLowerCase()] = true;
-    if(e.key === 'v' || e.key === 'V') spawn(mouse.x, mouse.y);
-    if(e.key === 'b' || e.key === 'B') explosion(mouse.x, mouse.y);
-    if(e.key === 'r' || e.key === 'R') { entities = []; sparks = []; }
-    if(e.key === 'g' || e.key === 'G') gravity *= -1;
-    if(/[1-9]/.test(e.key)) activeShape = parseInt(e.key);
+    const k = e.key;
+    if(k === '1') triggerExplosion(canvas.width/2, canvas.height/2, 2000, 100); // NUKE
+    if(k === '2') blackHole();
+    if(k === '3') gravity = (gravity === 0) ? 0.5 : 0;
+    if(k === '4') paused = !paused;
+    if(k === '5') for(let i=0; i<20; i++) spawn(Math.random()*canvas.width, -50); // RAIN
+    if(k === '6') implosion(mouse.x, mouse.y);
+    if(k === '7') currentSize += 10;
+    if(k === '8') currentSize = Math.max(5, currentSize - 10);
+    if(k === '9') entities = [];
+    if(k === '0') gravity = 0.5;
 };
-window.onkeyup = e => keys[e.key.toLowerCase()] = false;
+
 window.onmousemove = e => { mouse.x = e.clientX; mouse.y = e.clientY; };
 
-function spawn(x, y, vx=0, vy=0) {
-    entities.push({ x, y, vx, vy, size: 15 + Math.random()*25, type: activeShape, rot: 0, vr: (Math.random()-0.5)*0.2, hue: Math.random()*360 });
+function spawn(x, y) {
+    entities.push({ 
+        x, y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, 
+        size: currentSize, type: Math.floor(Math.random()*5)+3, 
+        rot: 0, vr: (Math.random()-0.5)*0.2, 
+        color: `hsl(${Math.random()*360}, 100%, 50%)`
+    });
 }
 
-function explosion(x, y) {
-    shocks.push({ x, y, r: 0, max: 300 });
-    entities.forEach(b => {
-        let d = Math.hypot(b.x-x, b.y-y);
-        if(d < 300) { b.vx += (b.x-x)/d*25; b.vy += (b.y-y)/d*25; }
+function triggerExplosion(x, y, radius, force) {
+    shocks.push({x, y, r: 0, max: radius});
+    entities.forEach(e => {
+        let dx = e.x - x, dy = e.y - y, d = Math.hypot(dx, dy);
+        if(d < radius) {
+            let p = (radius - d) / radius;
+            e.vx += (dx/d) * force * p;
+            e.vy += (dy/d) * force * p;
+        }
+    });
+}
+
+function implosion(x, y) {
+    shocks.push({x, y, r: 200, max: 0}); // Visual reverse pulse
+    entities.forEach(e => {
+        let dx = x - e.x, dy = y - e.y, d = Math.hypot(dx, dy);
+        if(d < 500) { e.vx += (dx/d)*25; e.vy += (dy/d)*25; }
+    });
+}
+
+function blackHole() {
+    entities.forEach(e => {
+        let dx = mouse.x - e.x, dy = mouse.y - e.y, d = Math.hypot(dx, dy);
+        e.vx += (dx/d)*15; e.vy += (dy/d)*15;
     });
 }
 
 function update() {
-    timeScale = keys['shift'] ? 0.2 : 1;
-    
-    // Fountain
-    if(keys['f']) spawn(mouse.x, mouse.y, (Math.random()-0.5)*20, -15);
-
-    // Black Hole (Space)
-    if(keys[' ']) {
-        entities.forEach(b => {
-            let dx = mouse.x - b.x, dy = mouse.y - b.y, d = Math.hypot(dx, dy);
-            if(d > 10) { b.vx += (dx/d)*0.8; b.vy += (dy/d)*0.8; }
-        });
-        // Sucking effect particles
-        for(let i=0; i<5; i++) sparks.push({x: mouse.x+(Math.random()-0.5)*400, y: mouse.y+(Math.random()-0.5)*400, vx:0, vy:0, life:1});
-    }
+    if(paused) return;
 
     entities.forEach((b, i) => {
-        // Drag logic
-        if(keys['x'] && Math.hypot(b.x-mouse.x, b.y-mouse.y) < 50) {
-            b.vx = (mouse.x - b.x) * 0.3; b.vy = (mouse.y - b.y) * 0.3;
-        }
+        b.vy += gravity; b.x += b.vx; b.y += b.vy; b.rot += b.vr;
+        b.vx *= 0.98; b.vy *= 0.98;
 
-        b.vy += gravity * timeScale;
-        b.x += b.vx * timeScale; b.y += b.vy * timeScale;
-        b.rot += b.vr * timeScale;
-        
-        b.vx *= 0.99; b.vy *= 0.99;
-
-        // Bouncing
         if(b.y > canvas.height - b.size/2) { b.y = canvas.height - b.size/2; b.vy *= -0.6; }
-        if(b.y < b.size/2) { b.y = b.size/2; b.vy *= -0.6; }
-        if(b.x < b.size/2 || b.x > canvas.width - b.size/2) { b.vx *= -0.6; b.x = b.x < b.size/2 ? b.size/2 : canvas.width - b.size/2; }
+        if(b.x < b.size/2 || b.x > canvas.width - b.size/2) b.vx *= -0.6;
 
-        // Object Collisions
         for(let j=i+1; j<entities.length; j++){
             let b2 = entities[j], dx = b2.x-b.x, dy = b2.y-b.y, d = Math.hypot(dx,dy), min = (b.size+b2.size)/2;
             if(d < min) {
@@ -120,50 +123,35 @@ function update() {
             }
         }
     });
-
-    shocks.forEach((s, i) => { s.r += 15 * timeScale; if(s.r > s.max) shocks.splice(i, 1); });
-    sparks.forEach((p, i) => { 
-        let dx = mouse.x - p.x, dy = mouse.y - p.y, d = Math.hypot(dx,dy);
-        p.x += (dx/d)*10; p.y += (dy/d)*10;
-        if(d < 10) sparks.splice(i, 1);
+    shocks.forEach((s, i) => { 
+        if(s.max > s.r) s.r += 20; else s.r -= 20;
+        if(s.r > s.max && s.max > 0 || s.r < 0) shocks.splice(i, 1); 
     });
-
-    // Cleanup to prevent crash
-    if(entities.length > 400) entities.shift();
 }
 
 function draw() {
-    ctx.fillStyle = '#050508'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#050005'; ctx.fillRect(0,0,canvas.width,canvas.height);
     
-    // Draw Black Hole effect
-    if(keys[' ']) {
-        ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 40, 0, Math.PI*2);
-        ctx.fillStyle = 'rgba(255, 0, 85, 0.2)'; ctx.fill();
-        ctx.strokeStyle = '#ff0055'; ctx.stroke();
-    }
-
-    sparks.forEach(p => { ctx.fillStyle = '#00f2ff'; ctx.fillRect(p.x, p.y, 2, 2); });
-    shocks.forEach(s => { ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.strokeStyle = `rgba(255,255,255,${1-s.r/s.max})`; ctx.stroke(); });
+    shocks.forEach(s => { 
+        ctx.beginPath(); ctx.arc(s.x, s.y, Math.abs(s.r), 0, Math.PI*2); 
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke(); 
+    });
 
     entities.forEach(b => {
         ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot);
-        ctx.fillStyle = `hsl(${b.hue}, 80%, 60%)`;
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
-        
+        ctx.fillStyle = b.color; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
         ctx.beginPath();
-        if(b.type === 1) ctx.rect(-4,-4,8,8);
-        else {
-            for(let i=0; i<b.type; i++){
-                let a = i/b.type*Math.PI*2, px = Math.cos(a)*b.size/2, py = Math.sin(a)*b.size/2;
-                if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
-            }
+        for(let i=0; i<b.type; i++){
+            let a = i/b.type*Math.PI*2, px = Math.cos(a)*b.size/2, py = Math.sin(a)*b.size/2;
+            if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
         }
         ctx.closePath(); ctx.fill(); ctx.stroke();
         ctx.restore();
     });
 }
 
-function loop() { if(gameActive) { update(); draw(); } requestAnimationFrame(loop); }
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
 </script>
 </body>
 </html>
