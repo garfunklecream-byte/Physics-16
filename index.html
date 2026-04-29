@@ -2,19 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Physics-16 // UNLIMITED</title>
+    <title>Physics-16 // ENGINEER</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
         body { 
-            margin: 0; background: #020205; overflow: hidden;
+            margin: 0; background: #010103; overflow: hidden;
             font-family: 'Press Start 2P', cursive; cursor: crosshair;
         }
 
         #crt {
             position: fixed; inset: 0; pointer-events: none; z-index: 1000;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%),
-                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
             background-size: 100% 4px, 4px 100%;
         }
 
@@ -22,19 +22,19 @@
 
         #console {
             position: fixed; bottom: 20px; left: 20px;
-            width: 300px; padding: 15px;
-            background: rgba(0, 20, 40, 0.9);
+            width: 320px; padding: 15px;
+            background: rgba(0, 10, 20, 0.95);
             border: 2px solid #00f2ff;
             z-index: 500; color: #00f2ff;
         }
 
-        .stat-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 8px; }
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 7px; }
         .label { color: #55aaff; }
         .val { color: #fff; }
 
         #mode-tag {
             text-align: center; padding: 5px; margin-top: 10px;
-            background: #ff0055; color: #fff; font-size: 10px;
+            background: #00ff41; color: #000; font-size: 9px; font-weight: bold;
         }
 
         .menu {
@@ -47,10 +47,6 @@
             background: transparent; border: 2px solid #00f2ff; color: #00f2ff;
             padding: 12px 24px; font-family: 'Press Start 2P'; font-size: 10px; cursor: pointer;
         }
-        .btn:hover { background: #00f2ff; color: #000; }
-
-        .shake { animation: shake 0.1s infinite; }
-        @keyframes shake { 0%{transform:translate(2px,2px)} 50%{transform:translate(-2px,-2px)} }
     </style>
 </head>
 <body>
@@ -58,29 +54,23 @@
 <div id="crt"></div>
 
 <div id="console">
-    <div style="font-size: 12px; margin-bottom: 15px; border-bottom: 1px solid #00f2ff; padding-bottom: 5px;">P16_OS v4.0</div>
-    <div class="stat-row"><span class="label">ENTITIES:</span> <span class="val" id="obj-count">0</span></div>
+    <div style="font-size: 10px; margin-bottom: 10px; border-bottom: 1px solid #00f2ff; padding-bottom: 5px;">ENGINEER_MODULE v5.0</div>
+    <div class="stat-row"><span class="label">OBJECTS:</span> <span class="val" id="obj-count">0</span></div>
     <div class="stat-row"><span class="label">SHAPE:</span> <span class="val" id="shape-name">SQUARE (4)</span></div>
-    <div class="stat-row"><span class="label">GRAVITY:</span> <span class="val" id="grav-txt">DOWN</span></div>
-    <div id="mode-tag">CHAOS_MODE</div>
+    <div class="stat-row"><span class="label">FINE BUILD:</span> <span class="val" id="build-status">OFF</span></div>
+    <div class="stat-row"><span class="label">TOOLS:</span> <span class="val">F:ROT | G:MOVE | H:ROPE | J:STRUT</span></div>
+    <div id="mode-tag">SYSTEM_READY</div>
 </div>
 
 <div id="main-menu" class="menu">
-    <h1 style="color:#00f2ff; text-shadow: 0 0 10px #00f2ff;">PHYSICS-16</h1>
+    <h1 style="color:#00f2ff;">PHYSICS-16</h1>
     <div style="background:#050510; padding:20px; border:1px solid #555; font-size:8px; line-height:2; margin-bottom:20px;">
-        [1-9] CHANGE SHAPE (1=Dot, 2=Line, 4=Square)<br>
-        [C] TOGGLE FINE BUILD (GIZMOS)<br>
-        [LEFT CLICK] SPAWN | [RIGHT CLICK] EXPLODE<br>
-        [G] GRAVITY | [ESC] THEMES<br>
-        <span style="color:#ff0055">WARNING: NO SHAPE LIMIT. MAY LAG!</span>
+        FINE BUILD (C) MUST BE ON FOR CONSTRAINTS:<br>
+        1. Select Object (Hover + F or G)<br>
+        2. Rope (H) / Strut (J): Click 2 objects to link<br>
+        3. F: Rotate selected | G: Drag selected
     </div>
-    <button class="btn" onclick="start()">BOOT SYSTEM</button>
-</div>
-
-<div id="pause-menu" class="menu" style="display:none;">
-    <h2 style="color:#00f2ff">SELECT_CSS_OVERRIDE</h2>
-    <div id="style-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:15px;"></div>
-    <button class="btn" onclick="togglePause()" style="margin-top:30px;">RESUME</button>
+    <button class="btn" onclick="start()">LOAD ENGINE</button>
 </div>
 
 <canvas id="gameCanvas"></canvas>
@@ -91,94 +81,76 @@ const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-let entities = [], shocks = [];
-let gameActive = false, isPaused = false, fineBuild = false;
-let gravity = 0.5, activeShape = 4;
-
-const THEMES = [
-    { name: "CYBERPUNK", bg: "#020205", p: "#00f2ff", s: "#ff0055" },
-    { name: "MONOCHROME", bg: "#fff", p: "#000", s: "#666" },
-    { name: "AMBER_DOS", bg: "#1a1000", p: "#ffb300", s: "#332200" },
-    { name: "VAPORWAVE", bg: "#2e003e", p: "#ff71ce", s: "#01cdfe" }
-];
-let theme = THEMES[0];
-
-const audio = new (window.AudioContext || window.webkitAudioContext)();
-function playSfx(f, t, d, v=0.1) {
-    const o = audio.createOscillator(), g = audio.createGain();
-    o.type = t; o.frequency.value = f; g.gain.value = v;
-    g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + d);
-    o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + d);
-}
-
-const grid = document.getElementById('style-grid');
-THEMES.forEach(t => {
-    const b = document.createElement('button'); b.className = 'btn'; b.innerText = t.name;
-    b.onclick = () => { theme = t; togglePause(); }; grid.appendChild(b);
-});
+let entities = [], constraints = [], shocks = [];
+let gameActive = false, fineBuild = false, selected = null, linking = null;
+let gravity = 0.5, activeShape = 4, mouse = {x:0, y:0};
 
 function start() { document.getElementById('main-menu').style.display = 'none'; gameActive = true; loop(); }
-function togglePause() { if(!gameActive) return; isPaused = !isPaused; document.getElementById('pause-menu').style.display = isPaused ? 'flex' : 'none'; }
+
+window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
 
 window.addEventListener('keydown', e => {
-    if(e.key === 'Escape') togglePause();
-    if(e.key === 'g' || e.key === 'G') { gravity *= -1; document.getElementById('grav-txt').innerText = gravity > 0 ? "DOWN" : "UP"; playSfx(150, 'sine', 0.2); }
     if(e.key === 'c' || e.key === 'C') { 
-        fineBuild = !fineBuild; 
-        const tag = document.getElementById('mode-tag');
-        tag.innerText = fineBuild ? "FINE_BUILD" : "CHAOS_MODE";
-        tag.style.background = fineBuild ? "#00ff41" : "#ff0055";
-        playSfx(500, 'square', 0.1);
+        fineBuild = !fineBuild;
+        document.getElementById('build-status').innerText = fineBuild ? "ACTIVE" : "OFF";
+        document.getElementById('mode-tag').style.background = fineBuild ? "#00ff41" : "#ff0055";
     }
-    if(/[1-9]/.test(e.key)) {
-        activeShape = parseInt(e.key);
-        const names = ["?", "DOT", "LINE", "TRI", "SQR", "PENT", "HEX", "HEPT", "OCT", "NONA"];
-        document.getElementById('shape-name').innerText = `${names[activeShape]} (${e.key})`;
-        playSfx(800, 'sine', 0.05);
+    
+    // Selection Logic
+    if (fineBuild) {
+        selected = entities.find(b => Math.hypot(b.x - mouse.x, b.y - mouse.y) < b.size);
+        
+        if (selected) {
+            if (e.key === 'f') selected.rot += 0.2;
+            if (e.key === 'g') { selected.x = mouse.x; selected.y = mouse.y; selected.vx = 0; selected.vy = 0; }
+            
+            // Constraint Start
+            if (e.key === 'h' || e.key === 'j') {
+                if (!linking) {
+                    linking = { a: selected, type: e.key === 'h' ? 'rope' : 'strut' };
+                } else if (linking.a !== selected) {
+                    constraints.push({
+                        a: linking.a, b: selected,
+                        dist: Math.hypot(linking.a.x - selected.x, linking.a.y - selected.y),
+                        type: linking.type
+                    });
+                    linking = null;
+                }
+            }
+        }
     }
+
+    if(/[1-9]/.test(e.key)) activeShape = parseInt(e.key);
 });
 
 canvas.addEventListener('mousedown', e => {
-    if(!gameActive || isPaused) return;
+    if(!gameActive) return;
     if(e.button === 0) spawn(e.clientX, e.clientY);
 });
 
-canvas.oncontextmenu = (e) => {
-    e.preventDefault();
-    shocks.push({ x: e.clientX, y: e.clientY, r: 0, max: 250 });
-    entities.forEach(b => {
-        let dx = b.x - e.clientX, dy = b.y - e.clientY, d = Math.hypot(dx, dy);
-        if(d < 250) { b.vx += (dx/d)*20; b.vy += (dy/d)*20; }
-    });
-    playSfx(60, 'sawtooth', 0.5, 0.2);
-    document.body.classList.add('shake');
-    setTimeout(() => document.body.classList.remove('shake'), 100);
-};
-
 function spawn(x, y) {
-    let amt = fineBuild ? 1 : 3;
-    for(let i=0; i<amt; i++){
-        entities.push({
-            x, y, vx: fineBuild ? 0 : (Math.random()-0.5)*15, vy: fineBuild ? 0 : (Math.random()-0.5)*15,
-            size: fineBuild ? 40 : 15 + Math.random()*25, type: activeShape,
-            rot: 0, vr: fineBuild ? 0 : (Math.random()-0.5)*0.2
-        });
-    }
-    playSfx(fineBuild ? 200 : 400, 'square', 0.1);
+    entities.push({
+        x, y, vx: fineBuild ? 0 : (Math.random()-0.5)*10, vy: fineBuild ? 0 : (Math.random()-0.5)*10,
+        size: 30, type: activeShape, rot: 0, vr: 0
+    });
 }
 
 function update() {
-    shocks.forEach((s, i) => { s.r += 12; if(s.r > s.max) shocks.splice(i, 1); });
+    // Constraint Physics (Verlet-ish)
+    constraints.forEach(c => {
+        let dx = c.b.x - c.a.x, dy = c.b.y - c.a.y, d = Math.hypot(dx, dy);
+        let diff = (c.dist - d) / d;
+        if (c.type === 'rope' && d < c.dist) return; // Ropes only pull
+        let ox = dx * diff * 0.5, oy = dy * diff * 0.5;
+        c.a.x -= ox; c.a.y -= oy; c.b.x += ox; c.b.y += oy;
+    });
 
-    for(let i=0; i<entities.length; i++) {
-        let b = entities[i];
-        b.vy += gravity; b.x += b.vx; b.y += b.vy; b.rot += b.vr;
-        b.vx *= 0.99; b.vy *= 0.99; 
+    entities.forEach((b, i) => {
+        b.vy += gravity; b.x += b.vx; b.y += b.vy;
+        b.vx *= 0.98; b.vy *= 0.98;
 
-        if(b.y > canvas.height - b.size/2) { b.y = canvas.height - b.size/2; b.vy *= -0.4; b.vx *= 0.8; }
-        if(b.y < b.size/2) { b.y = b.size/2; b.vy *= -0.4; }
-        if(b.x < b.size/2 || b.x > canvas.width - b.size/2) { b.vx *= -0.5; b.x = b.x < b.size/2 ? b.size/2 : canvas.width - b.size/2; }
-
+        if(b.y > canvas.height - b.size/2) { b.y = canvas.height - b.size/2; b.vy *= -0.3; }
+        
         for(let j=i+1; j<entities.length; j++) {
             let b2 = entities[j], dx = b2.x - b.x, dy = b2.y - b.y, d = Math.hypot(dx, dy), min = (b.size+b2.size)/2;
             if(d < min) {
@@ -187,31 +159,28 @@ function update() {
                 b.vx -= ax; b.vy -= ay; b2.vx += ax; b2.vy += ay;
             }
         }
-    }
+    });
     document.getElementById('obj-count').innerText = entities.length;
 }
 
 function draw() {
-    ctx.fillStyle = theme.bg; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#010103'; ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    shocks.forEach(s => {
-        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
-        ctx.strokeStyle = theme.p; ctx.lineWidth = 2; ctx.globalAlpha = 1 - (s.r/s.max); ctx.stroke(); ctx.globalAlpha = 1;
+    // Draw Constraints
+    constraints.forEach(c => {
+        ctx.beginPath(); ctx.moveTo(c.a.x, c.a.y); ctx.lineTo(c.b.x, c.b.y);
+        ctx.strokeStyle = c.type === 'rope' ? '#aaa' : '#00f2ff';
+        ctx.setLineDash(c.type === 'rope' ? [5, 5] : []);
+        ctx.stroke();
     });
 
     entities.forEach(b => {
         ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot);
-        ctx.fillStyle = theme.p; ctx.strokeStyle = theme.s; ctx.lineWidth = 2;
+        ctx.fillStyle = '#00f2ff'; ctx.strokeStyle = '#fff';
+        if (fineBuild && Math.hypot(b.x - mouse.x, b.y - mouse.y) < b.size) ctx.fillStyle = '#ff0055';
         
-        if(fineBuild) {
-            ctx.strokeStyle = "#fff"; ctx.setLineDash([4, 2]);
-            ctx.strokeRect(-b.size/2-4, -b.size/2-4, b.size+8, b.size+8);
-            ctx.setLineDash([]);
-        }
-
         ctx.beginPath();
         if(b.type === 1) ctx.rect(-3,-3,6,6);
-        else if(b.type === 2) ctx.rect(-b.size/2,-3,b.size,6);
         else {
             for(let i=0; i<b.type; i++) {
                 let a = (i/b.type)*Math.PI*2, px = Math.cos(a)*b.size/2, py = Math.sin(a)*b.size/2;
@@ -223,7 +192,7 @@ function draw() {
     });
 }
 
-function loop() { if(gameActive && !isPaused) { update(); draw(); } requestAnimationFrame(loop); }
+function loop() { if(gameActive) { update(); draw(); } requestAnimationFrame(loop); }
 </script>
 </body>
 </html>
