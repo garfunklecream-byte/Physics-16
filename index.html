@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Physics-16 // ARCHITECT</title>
+    <title>Physics-16 // UNLIMITED</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
@@ -20,13 +20,11 @@
 
         canvas { display: block; image-rendering: pixelated; }
 
-        /* OVERHAULED CONSOLE UI */
         #console {
             position: fixed; bottom: 20px; left: 20px;
-            width: 280px; padding: 15px;
-            background: rgba(0, 20, 40, 0.85);
+            width: 300px; padding: 15px;
+            background: rgba(0, 20, 40, 0.9);
             border: 2px solid #00f2ff;
-            box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
             z-index: 500; color: #00f2ff;
         }
 
@@ -48,9 +46,8 @@
         .btn {
             background: transparent; border: 2px solid #00f2ff; color: #00f2ff;
             padding: 12px 24px; font-family: 'Press Start 2P'; font-size: 10px; cursor: pointer;
-            transition: 0.2s;
         }
-        .btn:hover { background: #00f2ff; color: #000; box-shadow: 0 0 20px #00f2ff; }
+        .btn:hover { background: #00f2ff; color: #000; }
 
         .shake { animation: shake 0.1s infinite; }
         @keyframes shake { 0%{transform:translate(2px,2px)} 50%{transform:translate(-2px,-2px)} }
@@ -61,8 +58,8 @@
 <div id="crt"></div>
 
 <div id="console">
-    <div style="font-size: 12px; margin-bottom: 15px; border-bottom: 1px solid #00f2ff; padding-bottom: 5px;">P16_OS v3.0</div>
-    <div class="stat-row"><span class="label">OBJECTS:</span> <span class="val" id="obj-count">0</span></div>
+    <div style="font-size: 12px; margin-bottom: 15px; border-bottom: 1px solid #00f2ff; padding-bottom: 5px;">P16_OS v4.0</div>
+    <div class="stat-row"><span class="label">ENTITIES:</span> <span class="val" id="obj-count">0</span></div>
     <div class="stat-row"><span class="label">SHAPE:</span> <span class="val" id="shape-name">SQUARE (4)</span></div>
     <div class="stat-row"><span class="label">GRAVITY:</span> <span class="val" id="grav-txt">DOWN</span></div>
     <div id="mode-tag">CHAOS_MODE</div>
@@ -71,10 +68,11 @@
 <div id="main-menu" class="menu">
     <h1 style="color:#00f2ff; text-shadow: 0 0 10px #00f2ff;">PHYSICS-16</h1>
     <div style="background:#050510; padding:20px; border:1px solid #555; font-size:8px; line-height:2; margin-bottom:20px;">
-        [1-9] CHANGE SHAPE<br>
+        [1-9] CHANGE SHAPE (1=Dot, 2=Line, 4=Square)<br>
         [C] TOGGLE FINE BUILD (GIZMOS)<br>
         [LEFT CLICK] SPAWN | [RIGHT CLICK] EXPLODE<br>
-        [G] GRAVITY | [ESC] THEMES
+        [G] GRAVITY | [ESC] THEMES<br>
+        <span style="color:#ff0055">WARNING: NO SHAPE LIMIT. MAY LAG!</span>
     </div>
     <button class="btn" onclick="start()">BOOT SYSTEM</button>
 </div>
@@ -82,7 +80,7 @@
 <div id="pause-menu" class="menu" style="display:none;">
     <h2 style="color:#00f2ff">SELECT_CSS_OVERRIDE</h2>
     <div id="style-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:15px;"></div>
-    <button class="btn" onclick="togglePause()" style="margin-top:30px; border-color:#fff; color:#fff;">RESUME</button>
+    <button class="btn" onclick="togglePause()" style="margin-top:30px;">RESUME</button>
 </div>
 
 <canvas id="gameCanvas"></canvas>
@@ -105,7 +103,6 @@ const THEMES = [
 ];
 let theme = THEMES[0];
 
-// AUDIO ENGINE
 const audio = new (window.AudioContext || window.webkitAudioContext)();
 function playSfx(f, t, d, v=0.1) {
     const o = audio.createOscillator(), g = audio.createGain();
@@ -114,7 +111,6 @@ function playSfx(f, t, d, v=0.1) {
     o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + d);
 }
 
-// Generate Styles
 const grid = document.getElementById('style-grid');
 THEMES.forEach(t => {
     const b = document.createElement('button'); b.className = 'btn'; b.innerText = t.name;
@@ -122,7 +118,7 @@ THEMES.forEach(t => {
 });
 
 function start() { document.getElementById('main-menu').style.display = 'none'; gameActive = true; loop(); }
-function togglePause() { isPaused = !isPaused; document.getElementById('pause-menu').style.display = isPaused ? 'flex' : 'none'; }
+function togglePause() { if(!gameActive) return; isPaused = !isPaused; document.getElementById('pause-menu').style.display = isPaused ? 'flex' : 'none'; }
 
 window.addEventListener('keydown', e => {
     if(e.key === 'Escape') togglePause();
@@ -177,14 +173,12 @@ function update() {
     for(let i=0; i<entities.length; i++) {
         let b = entities[i];
         b.vy += gravity; b.x += b.vx; b.y += b.vy; b.rot += b.vr;
-        b.vx *= 0.99; b.vy *= 0.99; // Air friction
+        b.vx *= 0.99; b.vy *= 0.99; 
 
-        // Bounds
         if(b.y > canvas.height - b.size/2) { b.y = canvas.height - b.size/2; b.vy *= -0.4; b.vx *= 0.8; }
         if(b.y < b.size/2) { b.y = b.size/2; b.vy *= -0.4; }
         if(b.x < b.size/2 || b.x > canvas.width - b.size/2) { b.vx *= -0.5; b.x = b.x < b.size/2 ? b.size/2 : canvas.width - b.size/2; }
 
-        // Collision
         for(let j=i+1; j<entities.length; j++) {
             let b2 = entities[j], dx = b2.x - b.x, dy = b2.y - b.y, d = Math.hypot(dx, dy), min = (b.size+b2.size)/2;
             if(d < min) {
@@ -194,14 +188,12 @@ function update() {
             }
         }
     }
-    if(entities.length > 150) entities.shift();
     document.getElementById('obj-count').innerText = entities.length;
 }
 
 function draw() {
     ctx.fillStyle = theme.bg; ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    // Shockwaves
     shocks.forEach(s => {
         ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
         ctx.strokeStyle = theme.p; ctx.lineWidth = 2; ctx.globalAlpha = 1 - (s.r/s.max); ctx.stroke(); ctx.globalAlpha = 1;
@@ -211,7 +203,6 @@ function draw() {
         ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot);
         ctx.fillStyle = theme.p; ctx.strokeStyle = theme.s; ctx.lineWidth = 2;
         
-        // Fine Build Gizmos
         if(fineBuild) {
             ctx.strokeStyle = "#fff"; ctx.setLineDash([4, 2]);
             ctx.strokeRect(-b.size/2-4, -b.size/2-4, b.size+8, b.size+8);
