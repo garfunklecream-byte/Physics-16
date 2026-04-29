@@ -5,31 +5,41 @@
     <title>Physics-16 // ARMAGEDDON</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-        body { margin: 0; background: #050005; overflow: hidden; font-family: 'Press Start 2P', cursive; cursor: crosshair; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Press Start 2P', cursive; cursor: crosshair; }
         #crt { position: fixed; inset: 0; pointer-events: none; z-index: 1000; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0,0,0,0.1) 50%), linear-gradient(90deg, rgba(255,0,0,0.03), rgba(0,255,0,0.01), rgba(0,0,255,0.03)); background-size: 100% 4px, 4px 100%; }
-        canvas { display: block; image-rendering: pixelated; }
+        canvas { display: block; }
         
         #hud {
             position: fixed; bottom: 20px; left: 20px; width: 420px; padding: 15px;
-            background: rgba(30, 0, 10, 0.9); border: 2px solid #ff0055; color: #fff; z-index: 500;
+            background: rgba(30, 0, 0, 0.9); border: 2px solid #ff0055; color: #fff; z-index: 500;
+            box-shadow: 0 0 20px #ff0055;
         }
-        .stat { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 7px; line-height: 1.5; }
-        .key-hint { color: #ff0055; font-weight: bold; }
-        #warning { color: #00ff41; font-size: 8px; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .ability-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 10px; font-size: 6px; }
+        .slot { border: 1px solid #555; padding: 4px; color: #00f2ff; }
+        .active-slot { border-color: #fff; background: #440000; color: #fff; }
+        .stat { font-size: 7px; margin-bottom: 5px; display: flex; justify-content: space-between; }
     </style>
 </head>
 <body>
 <div id="crt"></div>
 
 <div id="hud">
-    <div style="font-size: 10px; color: #ff0055; margin-bottom: 10px; border-bottom: 1px solid #ff0055; padding-bottom: 5px;">MAYHEM_OS v7.0 // NO_CAP</div>
-    <div class="stat"><span>[L-CLICK] SPAWN | [R-CLICK] EXPLODE</span></div>
-    <div class="stat"><span>[1] NUKE (ALL-MAP)</span> <span class="key-hint">[2] BLACK HOLE</span></div>
-    <div class="stat"><span>[3] ZERO-G TOGGLE</span> <span class="key-hint">[4] TIME FREEZE</span></div>
-    <div class="stat"><span>[5] SHAPE RAIN</span> <span class="key-hint">[6] IMPLOSION</span></div>
-    <div class="stat"><span>[7] SCALE UP</span> <span class="key-hint">[8] SCALE DOWN</span></div>
-    <div class="stat"><span>[9] DELETE ALL</span> <span class="key-hint">[0] RESET GRAVITY</span></div>
-    <div id="warning">SYSTEM STATUS: UNLIMITED ENTITIES</div>
+    <div style="font-size: 10px; color: #ff0055; margin-bottom: 10px; border-bottom: 1px solid #ff0055;">P16_ARMAGEDDON_OS</div>
+    <div class="stat"><span>OBJECTS:</span> <span id="count">0</span></div>
+    <div class="stat"><span>L-CLICK:</span> <span style="color:#00f2ff">SPAWN SHAPE</span></div>
+    <div class="stat"><span>R-CLICK:</span> <span style="color:#ff0055">EXPLOSION</span></div>
+    
+    <div class="ability-grid">
+        <div class="slot" id="s1">1: CLUSTER</div>
+        <div class="slot" id="s2">2: ANTIGRAV</div>
+        <div class="slot" id="s3">3: FREEZE</div>
+        <div class="slot" id="s4" class="active-slot">4: SQUARE</div>
+        <div class="slot" id="s5">5: VACUUM</div>
+        <div class="slot" id="s6">6: PENTAGON</div>
+        <div class="slot" id="s7">7: MINES</div>
+        <div class="slot" id="s8">8: BLENDER</div>
+        <div class="slot" id="s9" style="color:red">9: NUKE</div>
+    </div>
 </div>
 
 <canvas id="gameCanvas"></canvas>
@@ -39,81 +49,89 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
-let entities = [], shocks = [];
-let mouse = {x:0, y:0}, currentSize = 30, paused = false;
-let gravity = 0.5;
+let entities = [], shocks = [], mines = [];
+let mouse = {x:0, y:0}, keys = {}, activeAbility = 4;
+let gravity = 0.6;
 
 window.oncontextmenu = (e) => {
     e.preventDefault();
-    triggerExplosion(e.clientX, e.clientY, 300, 30);
+    triggerExplosion(e.clientX, e.clientY, 350, 30);
 };
 
 window.onmousedown = (e) => {
-    if(e.button === 0) spawn(e.clientX, e.clientY);
+    if(e.button === 0) {
+        if(activeAbility === 1) for(let i=0; i<10; i++) spawn(e.clientX, e.clientY, true);
+        else if(activeAbility === 4) spawn(e.clientX, e.clientY, false, 4);
+        else if(activeAbility === 6) spawn(e.clientX, e.clientY, false, 5);
+        else if(activeAbility === 7) mines.push({x: e.clientX, y: e.clientY, r: 20});
+        else if(activeAbility === 9) triggerExplosion(e.clientX, e.clientY, 2000, 100);
+        else spawn(e.clientX, e.clientY, false, activeAbility);
+    }
 };
 
 window.onkeydown = e => { 
-    const k = e.key;
-    if(k === '1') triggerExplosion(canvas.width/2, canvas.height/2, 2000, 100); // NUKE
-    if(k === '2') blackHole();
-    if(k === '3') gravity = (gravity === 0) ? 0.5 : 0;
-    if(k === '4') paused = !paused;
-    if(k === '5') for(let i=0; i<20; i++) spawn(Math.random()*canvas.width, -50); // RAIN
-    if(k === '6') implosion(mouse.x, mouse.y);
-    if(k === '7') currentSize += 10;
-    if(k === '8') currentSize = Math.max(5, currentSize - 10);
-    if(k === '9') entities = [];
-    if(k === '0') gravity = 0.5;
+    if(/[1-9]/.test(e.key)) {
+        document.querySelectorAll('.slot').forEach(s => s.classList.remove('active-slot'));
+        activeAbility = parseInt(e.key);
+        document.getElementById('s'+e.key).classList.add('active-slot');
+    }
+    if(e.key === 'r') { entities = []; mines = []; shocks = []; }
 };
 
 window.onmousemove = e => { mouse.x = e.clientX; mouse.y = e.clientY; };
 
-function spawn(x, y) {
+function spawn(x, y, random=false, type=4) {
     entities.push({ 
-        x, y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, 
-        size: currentSize, type: Math.floor(Math.random()*5)+3, 
+        x, y, 
+        vx: random ? (Math.random()-0.5)*30 : 0, 
+        vy: random ? (Math.random()-0.5)*30 : 0, 
+        size: 25 + Math.random()*15, 
+        type: type, 
         rot: 0, vr: (Math.random()-0.5)*0.2, 
-        color: `hsl(${Math.random()*360}, 100%, 50%)`
+        color: `hsl(${Math.random()*360}, 80%, 50%)`
     });
 }
 
 function triggerExplosion(x, y, radius, force) {
-    shocks.push({x, y, r: 0, max: radius});
-    entities.forEach(e => {
-        let dx = e.x - x, dy = e.y - y, d = Math.hypot(dx, dy);
+    shocks.push({ x, y, r: 0, max: radius });
+    entities.forEach(b => {
+        let dx = b.x - x, dy = b.y - y, d = Math.hypot(dx, dy);
         if(d < radius) {
-            let p = (radius - d) / radius;
-            e.vx += (dx/d) * force * p;
-            e.vy += (dy/d) * force * p;
+            let f = (1 - d/radius) * force;
+            b.vx += (dx/d) * f; b.vy += (dy/d) * f;
         }
     });
 }
 
-function implosion(x, y) {
-    shocks.push({x, y, r: 200, max: 0}); // Visual reverse pulse
-    entities.forEach(e => {
-        let dx = x - e.x, dy = y - e.y, d = Math.hypot(dx, dy);
-        if(d < 500) { e.vx += (dx/d)*25; e.vy += (dy/d)*25; }
-    });
-}
-
-function blackHole() {
-    entities.forEach(e => {
-        let dx = mouse.x - e.x, dy = mouse.y - e.y, d = Math.hypot(dx, dy);
-        e.vx += (dx/d)*15; e.vy += (dy/d)*15;
-    });
-}
-
 function update() {
-    if(paused) return;
-
+    // Ability 2: Antigrav (Hold 2) / Ability 5: Vacuum (Hold 5) / Ability 8: Blender
     entities.forEach((b, i) => {
+        if(activeAbility === 2) b.vy -= 1.2; 
+        if(activeAbility === 5) {
+            let dx = mouse.x - b.x, dy = mouse.y - b.y, d = Math.hypot(dx, dy);
+            b.vx += dx/d * 1.5; b.vy += dy/d * 1.5;
+        }
+        if(activeAbility === 8) { b.vx += (Math.random()-0.5)*10; b.vy += (Math.random()-0.5)*10; }
+        if(activeAbility === 3) { b.vx *= 0.1; b.vy *= 0.1; }
+
         b.vy += gravity; b.x += b.vx; b.y += b.vy; b.rot += b.vr;
         b.vx *= 0.98; b.vy *= 0.98;
 
+        // ALL SIDES LIMIT BOX
         if(b.y > canvas.height - b.size/2) { b.y = canvas.height - b.size/2; b.vy *= -0.6; }
-        if(b.x < b.size/2 || b.x > canvas.width - b.size/2) b.vx *= -0.6;
+        if(b.y < b.size/2) { b.y = b.size/2; b.vy *= -0.6; }
+        if(b.x > canvas.width - b.size/2) { b.x = canvas.width - b.size/2; b.vx *= -0.6; }
+        if(b.x < b.size/2) { b.x = b.size/2; b.vx *= -0.6; }
 
+        // Mine Collision
+        mines.forEach((m, mi) => {
+            if(Math.hypot(b.x-m.x, b.y-m.y) < b.size/2 + m.r) {
+                triggerExplosion(m.x, m.y, 500, 50);
+                mines.splice(mi, 1);
+            }
+        });
+
+        // Collision Logic
         for(let j=i+1; j<entities.length; j++){
             let b2 = entities[j], dx = b2.x-b.x, dy = b2.y-b.y, d = Math.hypot(dx,dy), min = (b.size+b2.size)/2;
             if(d < min) {
@@ -123,27 +141,35 @@ function update() {
             }
         }
     });
-    shocks.forEach((s, i) => { 
-        if(s.max > s.r) s.r += 20; else s.r -= 20;
-        if(s.r > s.max && s.max > 0 || s.r < 0) shocks.splice(i, 1); 
-    });
+
+    shocks.forEach((s, i) => { s.r += 25; if(s.r > s.max) shocks.splice(i, 1); });
+    document.getElementById('count').innerText = entities.length;
 }
 
 function draw() {
-    ctx.fillStyle = '#050005'; ctx.fillRect(0,0,canvas.width,canvas.height);
-    
-    shocks.forEach(s => { 
-        ctx.beginPath(); ctx.arc(s.x, s.y, Math.abs(s.r), 0, Math.PI*2); 
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke(); 
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    mines.forEach(m => {
+        ctx.fillStyle = '#ff0055'; ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.stroke();
+    });
+
+    shocks.forEach(s => {
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+        ctx.strokeStyle = `rgba(255, 0, 85, ${1 - s.r/s.max})`;
+        ctx.lineWidth = 4; ctx.stroke();
     });
 
     entities.forEach(b => {
         ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot);
         ctx.fillStyle = b.color; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
         ctx.beginPath();
-        for(let i=0; i<b.type; i++){
-            let a = i/b.type*Math.PI*2, px = Math.cos(a)*b.size/2, py = Math.sin(a)*b.size/2;
-            if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+        if(b.type === 1 || b.type === 4) ctx.rect(-b.size/2, -b.size/2, b.size, b.size);
+        else {
+            for(let i=0; i<b.type; i++){
+                let a = i/b.type*Math.PI*2, px = Math.cos(a)*b.size/2, py = Math.sin(a)*b.size/2;
+                if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+            }
         }
         ctx.closePath(); ctx.fill(); ctx.stroke();
         ctx.restore();
