@@ -2,34 +2,45 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Physics-16 // GIZMOS</title>
+    <title>Physics-16 // MAYHEM</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-        body { margin: 0; background: #010103; overflow: hidden; font-family: 'Press Start 2P', cursive; cursor: default; }
-        #crt { position: fixed; inset: 0; pointer-events: none; z-index: 1000; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255,0,0,0.02), rgba(0,255,0,0.01), rgba(0,0,255,0.02)); background-size: 100% 4px, 4px 100%; }
+        body { margin: 0; background: #050508; overflow: hidden; font-family: 'Press Start 2P', cursive; cursor: crosshair; }
+        #crt { position: fixed; inset: 0; pointer-events: none; z-index: 1000; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0,0,0,0.1) 50%), linear-gradient(90deg, rgba(255,0,0,0.03), rgba(0,255,0,0.01), rgba(0,0,255,0.03)); background-size: 100% 4px, 4px 100%; }
         canvas { display: block; image-rendering: pixelated; }
-        #console { position: fixed; bottom: 20px; left: 20px; width: 340px; padding: 15px; background: rgba(0, 10, 20, 0.95); border: 2px solid #00f2ff; z-index: 500; color: #00f2ff; }
-        .stat { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 7px; }
-        #mode-tag { text-align: center; padding: 5px; margin-top: 10px; background: #ff0055; color: #fff; font-size: 9px; }
+        
+        #hud {
+            position: fixed; bottom: 20px; left: 20px; width: 350px; padding: 15px;
+            background: rgba(10, 10, 30, 0.9); border: 2px solid #ff0055; color: #fff; z-index: 500;
+            box-shadow: 0 0 20px rgba(255, 0, 85, 0.4);
+        }
+        .stat { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 8px; }
+        .key-hint { color: #00f2ff; }
+        
         .menu { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; color: #fff; }
-        .btn { background: transparent; border: 2px solid #00f2ff; color: #00f2ff; padding: 12px 24px; font-family: 'Press Start 2P'; font-size: 10px; cursor: pointer; }
+        .btn { background: transparent; border: 2px solid #ff0055; color: #ff0055; padding: 15px 30px; font-family: 'Press Start 2P'; font-size: 12px; cursor: pointer; transition: 0.2s; }
+        .btn:hover { background: #ff0055; color: #fff; box-shadow: 0 0 30px #ff0055; }
     </style>
 </head>
 <body>
 <div id="crt"></div>
-<div id="console">
-    <div style="font-size: 10px; margin-bottom: 10px; border-bottom: 1px solid #00f2ff; padding-bottom: 5px;">GIZMO_DRIVE v6.0</div>
-    <div class="stat"><span>L-CLICK:</span> <span>SELECT/DESELECT</span></div>
-    <div class="stat"><span>V:</span> <span>PLACE SHAPE</span></div>
-    <div class="stat"><span>B:</span> <span>SHOCKWAVE</span></div>
-    <div class="stat"><span>X:</span> <span>HOLD TO DRAG</span></div>
-    <div class="stat"><span>Z:</span> <span>ANCHOR/FREEZE</span></div>
-    <div id="mode-tag">CHAOS_MODE</div>
+
+<div id="hud">
+    <div style="font-size: 12px; color: #ff0055; margin-bottom: 10px; border-bottom: 1px solid #ff0055;">P16_MAYHEM_CORE</div>
+    <div class="stat"><span>SPAWN OBJECT:</span> <span class="key-hint">[V]</span></div>
+    <div class="stat"><span>SHOCKWAVE:</span> <span class="key-hint">[B]</span></div>
+    <div class="stat"><span>BLACK HOLE:</span> <span class="key-hint">[HOLD SPACE]</span></div>
+    <div class="stat"><span>SLOW MOTION:</span> <span class="key-hint">[SHIFT]</span></div>
+    <div class="stat"><span>FOUNTAIN:</span> <span class="key-hint">[F]</span></div>
+    <div class="stat"><span>DRAG / THROW:</span> <span class="key-hint">[HOLD X]</span></div>
+    <div class="stat"><span>CLEAR ALL:</span> <span class="key-hint">[R]</span></div>
 </div>
+
 <div id="main-menu" class="menu">
-    <h1>PHYSICS-16</h1>
-    <button class="btn" onclick="start()">LOAD GIZMOS</button>
+    <h1 style="color:#ff0055; text-shadow: 0 0 15px #ff0055; font-size: 40px;">PHYSICS-16</h1>
+    <button class="btn" onclick="start()">ENTER THE VOID</button>
 </div>
+
 <canvas id="gameCanvas"></canvas>
 
 <script>
@@ -37,100 +48,107 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
-let entities = [], constraints = [], shocks = [];
-let gameActive = false, fineBuild = false, selected = null, secondary = null;
-let gravity = 0.5, activeShape = 4, mouse = {x:0, y:0}, keys = {};
+let entities = [], shocks = [], sparks = [];
+let gameActive = false, mouse = {x:0, y:0}, keys = {};
+let timeScale = 1, gravity = 0.5, activeShape = 4;
 
 function start() { document.getElementById('main-menu').style.display = 'none'; gameActive = true; loop(); }
 
 window.onkeydown = e => { 
     keys[e.key.toLowerCase()] = true;
-    if(e.key === 'c' || e.key === 'C') {
-        fineBuild = !fineBuild;
-        document.getElementById('mode-tag').innerText = fineBuild ? "FINE_BUILD" : "CHAOS_MODE";
-        document.getElementById('mode-tag').style.background = fineBuild ? "#00ff41" : "#ff0055";
-    }
     if(e.key === 'v' || e.key === 'V') spawn(mouse.x, mouse.y);
-    if(e.key === 'b' || e.key === 'B') shockwave(mouse.x, mouse.y);
+    if(e.key === 'b' || e.key === 'B') explosion(mouse.x, mouse.y);
+    if(e.key === 'r' || e.key === 'R') { entities = []; sparks = []; }
+    if(e.key === 'g' || e.key === 'G') gravity *= -1;
     if(/[1-9]/.test(e.key)) activeShape = parseInt(e.key);
-    
-    if(fineBuild && selected) {
-        if(e.key === 'z') selected.anchored = !selected.anchored;
-        if(e.key === 'f') selected.rot += 0.2;
-        // Constraint logic: Select A (Left click), then B (press H or J)
-        if(e.key === 'h' || e.key === 'j') {
-            let target = entities.find(b => b !== selected && Math.hypot(b.x-mouse.x, b.y-mouse.y) < b.size);
-            if(target) constraints.push({a: selected, b: target, dist: Math.hypot(selected.x-target.x, selected.y-target.y), type: e.key==='h'?'rope':'strut'});
-        }
-    }
 };
 window.onkeyup = e => keys[e.key.toLowerCase()] = false;
 window.onmousemove = e => { mouse.x = e.clientX; mouse.y = e.clientY; };
 
-canvas.onmousedown = e => {
-    if(!gameActive) return;
-    let hit = entities.find(b => Math.hypot(b.x - mouse.x, b.y - mouse.y) < b.size);
-    selected = (selected === hit) ? null : hit; // Toggle selection
-};
-
-function spawn(x, y) {
-    entities.push({ x, y, vx: 0, vy: 0, size: 35, type: activeShape, rot: 0, anchored: false });
+function spawn(x, y, vx=0, vy=0) {
+    entities.push({ x, y, vx, vy, size: 15 + Math.random()*25, type: activeShape, rot: 0, vr: (Math.random()-0.5)*0.2, hue: Math.random()*360 });
 }
 
-function shockwave(x, y) {
-    shocks.push({ x, y, r: 0, max: 250 });
+function explosion(x, y) {
+    shocks.push({ x, y, r: 0, max: 300 });
     entities.forEach(b => {
         let d = Math.hypot(b.x-x, b.y-y);
-        if(d < 250 && !b.anchored) { b.vx += (b.x-x)/d*20; b.vy += (b.y-y)/d*20; }
+        if(d < 300) { b.vx += (b.x-x)/d*25; b.vy += (b.y-y)/d*25; }
     });
 }
 
 function update() {
-    constraints.forEach(c => {
-        let dx = c.b.x - c.a.x, dy = c.b.y - c.a.y, d = Math.hypot(dx, dy);
-        let diff = (c.dist - d) / d;
-        if(c.type === 'rope' && d < c.dist) return;
-        let ox = dx * diff * 0.5, oy = dy * diff * 0.5;
-        if(!c.a.anchored) { c.a.x -= ox; c.a.y -= oy; }
-        if(!c.b.anchored) { c.b.x += ox; c.b.y += oy; }
-    });
+    timeScale = keys['shift'] ? 0.2 : 1;
+    
+    // Fountain
+    if(keys['f']) spawn(mouse.x, mouse.y, (Math.random()-0.5)*20, -15);
+
+    // Black Hole (Space)
+    if(keys[' ']) {
+        entities.forEach(b => {
+            let dx = mouse.x - b.x, dy = mouse.y - b.y, d = Math.hypot(dx, dy);
+            if(d > 10) { b.vx += (dx/d)*0.8; b.vy += (dy/d)*0.8; }
+        });
+        // Sucking effect particles
+        for(let i=0; i<5; i++) sparks.push({x: mouse.x+(Math.random()-0.5)*400, y: mouse.y+(Math.random()-0.5)*400, vx:0, vy:0, life:1});
+    }
 
     entities.forEach((b, i) => {
-        if(keys['x'] && selected === b) { b.x = mouse.x; b.y = mouse.y; b.vx = 0; b.vy = 0; }
-        if(b.anchored) { b.vx = 0; b.vy = 0; return; }
-        
-        b.vy += gravity; b.x += b.vx; b.y += b.vy;
-        b.vx *= 0.98; b.vy *= 0.98;
-        if(b.y > canvas.height - b.size/2) { b.y = canvas.height - b.size/2; b.vy *= -0.3; }
+        // Drag logic
+        if(keys['x'] && Math.hypot(b.x-mouse.x, b.y-mouse.y) < 50) {
+            b.vx = (mouse.x - b.x) * 0.3; b.vy = (mouse.y - b.y) * 0.3;
+        }
 
+        b.vy += gravity * timeScale;
+        b.x += b.vx * timeScale; b.y += b.vy * timeScale;
+        b.rot += b.vr * timeScale;
+        
+        b.vx *= 0.99; b.vy *= 0.99;
+
+        // Bouncing
+        if(b.y > canvas.height - b.size/2) { b.y = canvas.height - b.size/2; b.vy *= -0.6; }
+        if(b.y < b.size/2) { b.y = b.size/2; b.vy *= -0.6; }
+        if(b.x < b.size/2 || b.x > canvas.width - b.size/2) { b.vx *= -0.6; b.x = b.x < b.size/2 ? b.size/2 : canvas.width - b.size/2; }
+
+        // Object Collisions
         for(let j=i+1; j<entities.length; j++){
             let b2 = entities[j], dx = b2.x-b.x, dy = b2.y-b.y, d = Math.hypot(dx,dy), min = (b.size+b2.size)/2;
             if(d < min) {
                 let ang = Math.atan2(dy,dx), tx = b.x+Math.cos(ang)*min, ty = b.y+Math.sin(ang)*min;
                 let ax = (tx-b2.x)*0.5, ay = (ty-b2.y)*0.5;
-                if(!b.anchored){ b.vx -= ax; b.vy -= ay; }
-                if(!b2.anchored){ b2.vx += ax; b2.vy += ay; }
+                b.vx -= ax; b.vy -= ay; b2.vx += ax; b2.vy += ay;
             }
         }
     });
-    shocks.forEach((s, i) => { s.r += 10; if(s.r > s.max) shocks.splice(i, 1); });
+
+    shocks.forEach((s, i) => { s.r += 15 * timeScale; if(s.r > s.max) shocks.splice(i, 1); });
+    sparks.forEach((p, i) => { 
+        let dx = mouse.x - p.x, dy = mouse.y - p.y, d = Math.hypot(dx,dy);
+        p.x += (dx/d)*10; p.y += (dy/d)*10;
+        if(d < 10) sparks.splice(i, 1);
+    });
+
+    // Cleanup to prevent crash
+    if(entities.length > 400) entities.shift();
 }
 
 function draw() {
-    ctx.fillStyle = '#010103'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#050508'; ctx.fillRect(0,0,canvas.width,canvas.height);
     
-    shocks.forEach(s => { ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.strokeStyle = '#fff'; ctx.stroke(); });
+    // Draw Black Hole effect
+    if(keys[' ']) {
+        ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 40, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(255, 0, 85, 0.2)'; ctx.fill();
+        ctx.strokeStyle = '#ff0055'; ctx.stroke();
+    }
 
-    constraints.forEach(c => {
-        ctx.beginPath(); ctx.moveTo(c.a.x, c.a.y); ctx.lineTo(c.b.x, c.b.y);
-        ctx.strokeStyle = c.type === 'rope' ? '#666' : '#00f2ff'; ctx.stroke();
-    });
+    sparks.forEach(p => { ctx.fillStyle = '#00f2ff'; ctx.fillRect(p.x, p.y, 2, 2); });
+    shocks.forEach(s => { ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.strokeStyle = `rgba(255,255,255,${1-s.r/s.max})`; ctx.stroke(); });
 
     entities.forEach(b => {
         ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot);
-        ctx.fillStyle = b.anchored ? '#555' : '#00f2ff';
-        ctx.strokeStyle = (selected === b) ? '#ff0055' : '#fff';
-        ctx.lineWidth = (selected === b) ? 4 : 2;
+        ctx.fillStyle = `hsl(${b.hue}, 80%, 60%)`;
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
         
         ctx.beginPath();
         if(b.type === 1) ctx.rect(-4,-4,8,8);
@@ -142,16 +160,6 @@ function draw() {
         }
         ctx.closePath(); ctx.fill(); ctx.stroke();
         ctx.restore();
-
-        // GIZMOS
-        if(fineBuild && selected === b) {
-            ctx.strokeStyle = '#ff0055'; ctx.lineWidth = 2;
-            // Move Gizmo
-            ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + 50, b.y); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x, b.y - 50); ctx.stroke();
-            // Rotate Gizmo
-            ctx.beginPath(); ctx.arc(b.x, b.y, b.size + 10, 0, Math.PI*2); ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]);
-        }
     });
 }
 
