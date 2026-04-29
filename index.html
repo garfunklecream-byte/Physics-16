@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Physics-16 // GEOMETRY GOD</title>
+    <title>Physics-16 // ULTRA</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
         
@@ -18,7 +18,7 @@
             background-size: 100% 3px, 3px 100%;
         }
 
-        canvas { display: block; filter: saturate(1.2) brightness(1.1); }
+        canvas { display: block; filter: saturate(1.4) contrast(1.1); }
 
         #dashboard {
             position: fixed; bottom: 0; left: 0; width: 100%;
@@ -28,7 +28,7 @@
             padding: 0 20px; box-sizing: border-box; z-index: 500;
         }
 
-        .stat-panel { color: #00f2ff; text-align: center; min-width: 120px; }
+        .stat-panel { color: #00f2ff; text-align: center; min-width: 130px; }
         .stat-label { font-size: 9px; text-transform: uppercase; opacity: 0.6; margin-bottom: 4px; }
         .stat-value { font-size: 16px; font-weight: bold; text-shadow: 0 0 8px #00f2ff; }
 
@@ -42,7 +42,7 @@
         .ability-slot.active {
             background: #00f2ff; color: #000; box-shadow: 0 0 15px #00f2ff;
         }
-        .ability-slot span { font-size: 14px; font-weight: bold; margin-bottom: 2px; }
+        .ability-slot span { font-size: 14px; font-weight: bold; }
 
         #hint { font-size: 9px; color: #00ff41; position: absolute; top: -25px; width: 100%; text-align: center; font-weight: bold; }
     </style>
@@ -52,7 +52,7 @@
 <div id="crt"></div>
 
 <div id="dashboard">
-    <div id="hint">[+/-]: CHANGE SIDES | L-CLICK: ABILITY | R-CLICK: BLAST | R: RESET</div>
+    <div id="hint">[+/-] SIDES | [C] CLEAR STAGE | [L-CLICK] ABILITY | [R-CLICK] EXPLOSION</div>
     
     <div class="stat-panel">
         <div class="stat-label">ACTIVE SIDES</div>
@@ -72,7 +72,7 @@
     </div>
 
     <div class="stat-panel">
-        <div class="stat-label">ENTITY COUNT</div>
+        <div class="stat-label">ENTITIES</div>
         <div class="stat-value" id="count">0</div>
     </div>
 </div>
@@ -101,36 +101,37 @@ window.onmousedown = (e) => {
     if(e.button !== 0 || e.clientY > canvas.height) return;
     
     switch(activeSlot) {
-        case 1: for(let i=0; i<15; i++) spawn(e.clientX, e.clientY, true); break; // Spray
-        case 4: spawn(e.clientX, e.clientY); break; // Standard Shape
-        case 6: mines.push({x: e.clientX, y: e.clientY, r: 20}); break; // Mine
-        case 9: shockwave(e.clientX, e.clientY, 3000, 150); break; // Nuke
+        case 1: for(let i=0; i<15; i++) spawn(e.clientX, e.clientY, true); break;
+        case 4: spawn(e.clientX, e.clientY); break;
+        case 6: mines.push({x: e.clientX, y: e.clientY, r: 20}); break;
+        case 9: shockwave(e.clientX, e.clientY, 3000, 150); break;
         default: spawn(e.clientX, e.clientY); break;
     }
 };
 
 window.onkeydown = e => {
-    // 1-9 Abilities
-    if(/[1-9]/.test(e.key)) {
+    const key = e.key.toLowerCase();
+    if(/[1-9]/.test(key)) {
         document.querySelectorAll('.ability-slot').forEach(s => s.classList.remove('active'));
-        activeSlot = parseInt(e.key);
-        document.getElementById('a'+e.key).classList.add('active');
+        activeSlot = parseInt(key);
+        document.getElementById('a'+key).classList.add('active');
     }
-    // +/- Shape sides
-    if(e.key === '+' || e.key === '=') { polySides = Math.min(20, polySides + 1); updateSideDisplay(); }
-    if(e.key === '-' || e.key === '_') { polySides = Math.max(3, polySides - 1); updateSideDisplay(); }
-    
-    if(e.key === 'r' || e.key === 'R') { entities = []; mines = []; shocks = []; }
+    if(key === '+' || key === '=') { polySides = Math.min(20, polySides + 1); updateSideDisplay(); }
+    if(key === '-' || key === '_') { polySides = Math.max(3, polySides - 1); updateSideDisplay(); }
+    if(key === 'c') { entities = []; mines = []; shocks = []; }
 };
 
 function updateSideDisplay() { document.getElementById('side-count').innerText = polySides; }
 
 function spawn(x, y, burst=false) {
+    // LAG PREVENTION: Remove oldest if over 5000
+    if(entities.length > 5000) entities.shift();
+
     entities.push({
         x, y,
         vx: burst ? (Math.random()-0.5)*50 : 0,
         vy: burst ? (Math.random()-0.5)*50 : 0,
-        size: 15 + Math.random()*25,
+        size: 12 + Math.random()*20,
         sides: polySides,
         rot: 0, vr: (Math.random()-0.5)*0.3,
         hue: Math.random()*360
@@ -150,28 +151,25 @@ function shockwave(x, y, radius, power) {
 
 function update() {
     entities.forEach((b, i) => {
-        // Ability Logic
-        if(activeSlot === 2) b.vy -= 1.2; // Float
-        if(activeSlot === 3) { b.vx *= 0.1; b.vy *= 0.1; b.vr *= 0.1; } // Freeze
-        if(activeSlot === 5) { // Pull (Vacuum)
+        if(activeSlot === 2) b.vy -= 1.25;
+        if(activeSlot === 3) { b.vx *= 0.1; b.vy *= 0.1; }
+        if(activeSlot === 5) {
             let dx = mouse.x - b.x, dy = mouse.y - b.y, d = Math.hypot(dx, dy);
             if(d > 5) { b.vx += dx/d * 1.5; b.vy += dy/d * 1.5; }
         }
-        if(activeSlot === 7) { // Teleport (Loop to top)
-             if(b.y > canvas.height - 40) { b.y = 50; b.vx *= 1.5; }
-        }
-        if(activeSlot === 8) { b.vx += (Math.random()-0.5)*15; b.vy += (Math.random()-0.5)*15; } // Chaos
+        if(activeSlot === 7 && b.y > canvas.height - 30) { b.y = 30; b.vx *= 1.2; }
+        if(activeSlot === 8) { b.vx += (Math.random()-0.5)*15; b.vy += (Math.random()-0.5)*15; }
 
         b.vy += gravity; b.x += b.vx; b.y += b.vy; b.rot += b.vr;
         b.vx *= 0.99; b.vy *= 0.99;
 
-        // BOUNDS (Solid Box)
+        // BOX BOUNDS
         if(b.y > canvas.height - b.size/2) { b.y = canvas.height - b.size/2; b.vy *= -0.7; }
         if(b.y < b.size/2) { b.y = b.size/2; b.vy *= -0.7; }
         if(b.x > canvas.width - b.size/2) { b.x = canvas.width - b.size/2; b.vx *= -0.7; }
         if(b.x < b.size/2) { b.x = b.size/2; b.vx *= -0.7; }
 
-        // Mine Collision
+        // MINE COLLISION
         mines.forEach((m, mi) => {
             if(Math.hypot(b.x-m.x, b.y-m.y) < b.size/2 + m.r) {
                 shockwave(m.x, m.y, 500, 60);
@@ -179,7 +177,7 @@ function update() {
             }
         });
 
-        // Object Collision
+        // COLLISION (Simple radius)
         for(let j=i+1; j<entities.length; j++){
             let b2 = entities[j], dx = b2.x-b.x, dy = b2.y-b.y, d = Math.hypot(dx,dy), min = (b.size+b2.size)/2;
             if(d < min) {
@@ -213,7 +211,7 @@ function draw() {
         ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot);
         let color = `hsl(${b.hue}, 100%, 60%)`;
         ctx.fillStyle = color; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
-        ctx.shadowBlur = 10; ctx.shadowColor = color;
+        ctx.shadowBlur = 8; ctx.shadowColor = color;
         
         ctx.beginPath();
         for(let i=0; i<b.sides; i++){
