@@ -21,7 +21,7 @@
         canvas { display: block; image-rendering: pixelated; }
 
         .menu {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95);
             display: flex; flex-direction: column; align-items: center; 
             justify-content: center; z-index: 200; color: #fff; text-align: center;
         }
@@ -35,13 +35,14 @@
 
         .btn {
             background: #222; border: 2px solid #fff; color: #fff;
-            padding: 8px; margin: 4px; font-family: 'Press Start 2P';
-            cursor: pointer; font-size: 8px;
+            padding: 12px; margin: 5px; font-family: 'Press Start 2P';
+            cursor: pointer; font-size: 10px;
         }
         .btn:hover { background: #fff; color: #000; }
 
         #shape-indicator {
-            position: fixed; bottom: 20px; left: 20px; color: #00f2ff; font-size: 10px;
+            position: fixed; bottom: 20px; left: 20px; color: #00f2ff; font-size: 10px; z-index: 50;
+            background: rgba(0,0,0,0.5); padding: 5px;
         }
     </style>
 </head>
@@ -51,28 +52,29 @@
     <div id="shape-indicator">SHAPE: SQUARE (4)</div>
 
     <div id="main-menu" class="menu">
-        <h1 style="color: #00f2ff;">PHYSICS-16</h1>
-        <div style="background:#111; padding:20px; border:2px solid #fff; font-size:8px; line-height:2; max-width:500px;">
-            > KEYS [0-5]: CHANGE SHAPE TYPE<br>
-            > [LEFT CLICK]: SPAWN SHAPE<br>
-            > [RIGHT CLICK]: EXPLODE<br>
-            > [ESC]: THEMES / STYLES<br>
-            > [G]: FLIP GRAVITY
+        <h1 style="color: #ff0055; font-size: 40px;">PHYSICS-16</h1>
+        <div style="background:#111; padding:25px; border:4px double #fff; font-size:9px; line-height:2; max-width:600px;">
+            <p style="color:#00f2ff">== OPERATOR INSTRUCTIONS ==</p>
+            > [0-5]: SWAP SHAPES (Circle to Pentagon)<br>
+            > [LEFT CLICK]: SPAWN OBJECTS<br>
+            > [RIGHT CLICK]: TRIGGER SHOCKWAVE<br>
+            > [G]: REVERSE GRAVITY<br>
+            > [ESC]: CHANGE SYSTEM STYLES (FREE)
         </div>
-        <button class="btn" onclick="start()" style="margin-top:20px;">[ INITIALIZE ]</button>
+        <button class="btn" onclick="start()" style="margin-top:25px;">[ BOOT_SANDBOX ]</button>
     </div>
 
     <div id="pause-menu" class="menu" style="display:none;">
-        <h2>SYSTEM_STYLES</h2>
-        <div id="style-grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin:20px;">
+        <h2 style="color:#00f2ff">SYSTEM_STYLES</h2>
+        <div id="style-grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px; margin:20px;">
             </div>
-        <button class="btn" onclick="togglePause()">CLOSE</button>
+        <button class="btn" onclick="togglePause()">RESUME</button>
     </div>
 
     <div id="ui-bar">
         <div>OBJECTS: <span id="obj-count">0</span></div>
-        <div id="grav-txt">GRAVITY: DOWN</div>
-        <div>STILL ALIVE</div>
+        <div id="grav-txt" style="color:#ff0055">GRAVITY: DOWN</div>
+        <div>PHYSICS-16 v2.0</div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -85,19 +87,20 @@
 
     let gameActive = false, isPaused = false;
     let entities = [];
-    let gravity = 0.4;
+    let gravity = 0.5;
     let activeShape = 4; // Default Square
 
     const THEMES = [
-        { name: "NEON", bg: "#000", primary: "#00f2ff", vir: "#ff0055" },
-        { name: "RETRO", bg: "#2d142c", primary: "#ee4540", vir: "#801336" },
-        { name: "MATRIX", bg: "#000", primary: "#00ff41", vir: "#003b00" },
-        { name: "PAPER", bg: "#f0f0f0", primary: "#000", vir: "#444" },
-        { name: "GOLD", bg: "#1a1a00", primary: "#ffd700", vir: "#fff" }
+        { name: "CYBER", bg: "#000", primary: "#00f2ff", secondary: "#ff0055" },
+        { name: "RETRO", bg: "#2d142c", primary: "#ee4540", secondary: "#801336" },
+        { name: "MATRIX", bg: "#000", primary: "#00ff41", secondary: "#003b00" },
+        { name: "GOLD", bg: "#1a1a00", primary: "#ffd700", secondary: "#fff" },
+        { name: "GHOST", bg: "#fff", primary: "#222", secondary: "#aaa" },
+        { name: "VAPOR", bg: "#1a002e", primary: "#ff71ce", secondary: "#01cdfe" }
     ];
     let currentTheme = THEMES[0];
 
-    // Setup Styles Menu
+    // Populate Styles
     const styleGrid = document.getElementById('style-grid');
     THEMES.forEach(t => {
         const b = document.createElement('button');
@@ -113,13 +116,17 @@
     }
 
     function togglePause() {
+        if(!gameActive) return;
         isPaused = !isPaused;
         document.getElementById('pause-menu').style.display = isPaused ? 'flex' : 'none';
     }
 
     window.addEventListener('keydown', e => {
         if(e.key === 'Escape') togglePause();
-        if(e.key === 'g') gravity *= -1;
+        if(e.key === 'g' || e.key === 'G') {
+            gravity *= -1;
+            document.getElementById('grav-txt').innerText = gravity > 0 ? "GRAVITY: DOWN" : "GRAVITY: UP";
+        }
         if(['0','1','2','3','4','5'].includes(e.key)) {
             activeShape = parseInt(e.key);
             const names = ["CIRCLE", "DOT", "LINE", "TRIANGLE", "SQUARE", "PENTAGON"];
@@ -129,9 +136,7 @@
 
     canvas.addEventListener('mousedown', e => {
         if(!gameActive || isPaused) return;
-        if(e.button === 0) {
-            spawn(e.clientX, e.clientY);
-        }
+        if(e.button === 0) spawn(e.clientX, e.clientY);
     });
 
     canvas.oncontextmenu = (e) => {
@@ -139,27 +144,29 @@
         entities.forEach(b => {
             let dx = b.x - e.clientX; let dy = b.y - e.clientY;
             let dist = Math.hypot(dx, dy);
-            if(dist < 250) { b.vx += (dx/dist)*15; b.vy += (dy/dist)*15; }
+            if(dist < 300) { b.vx += (dx/dist)*20; b.vy += (dy/dist)*20; }
         });
     };
 
     function spawn(x, y) {
-        entities.push({
-            x, y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10,
-            size: 15 + Math.random()*20, type: activeShape,
-            rot: 0, vr: (Math.random()-0.5)*0.1
-        });
+        for(let i=0; i<2; i++) { // Spawn 2 at a time for chaos
+            entities.push({
+                x, y, vx: (Math.random()-0.5)*15, vy: (Math.random()-0.5)*15,
+                size: 15 + Math.random()*25, type: activeShape,
+                rot: 0, vr: (Math.random()-0.5)*0.15
+            });
+        }
     }
 
-    function drawShape(ctx, b) {
+    function drawPolygon(ctx, b) {
         ctx.beginPath();
         if(b.type === 0) { // Circle
             ctx.arc(0, 0, b.size/2, 0, Math.PI*2);
         } else if(b.type === 1) { // Dot
-            ctx.rect(-2, -2, 4, 4);
-        } else if(b.type === 2) { // Line (Capsule)
-            ctx.rect(-b.size/2, -4, b.size, 8);
-        } else { // Polygons
+            ctx.rect(-3, -3, 6, 6);
+        } else if(b.type === 2) { // Line
+            ctx.rect(-b.size/2, -3, b.size, 6);
+        } else { // Poly
             let sides = b.type;
             for(let i=0; i<sides; i++) {
                 let angle = (i/sides) * Math.PI * 2;
@@ -169,8 +176,7 @@
             }
         }
         ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
+        ctx.fill(); ctx.stroke();
     }
 
     function update() {
@@ -180,32 +186,32 @@
             b.x += b.vx; b.y += b.vy;
             b.rot += b.vr;
 
-            // Wall Collisions
-            if(b.x < b.size/2) { b.x = b.size/2; b.vx *= -0.5; }
-            if(b.x > canvas.width - b.size/2) { b.x = canvas.width - b.size/2; b.vx *= -0.5; }
-            if(b.y < b.size/2) { b.y = b.size/2; b.vy *= -0.5; }
-            if(b.y > canvas.height - b.size/2) { b.y = canvas.height - b.size/2; b.vy *= -0.5; b.vx *= 0.95; }
+            // Screen Bounds
+            if(b.x < b.size/2) { b.x = b.size/2; b.vx *= -0.6; }
+            if(b.x > canvas.width - b.size/2) { b.x = canvas.width - b.size/2; b.vx *= -0.6; }
+            if(b.y < b.size/2) { b.y = b.size/2; b.vy *= -0.6; }
+            if(b.y > canvas.height - b.size/2) { b.y = canvas.height - b.size/2; b.vy *= -0.6; b.vx *= 0.98; }
 
-            // Entity to Entity Collision (Simple Radius)
+            // Collision (Circle vs Circle math for all shapes for speed)
             for(let j=i+1; j<entities.length; j++) {
                 let b2 = entities[j];
-                let dx = b2.x - b.x; let dy = b2.y - b.y;
-                let dist = Math.hypot(dx, dy);
-                let minDist = (b.size/2) + (b2.size/2);
+                let dx = b2.x - b.x;
+                let dy = b2.y - b.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                let min = (b.size/2) + (b2.size/2);
                 
-                if(dist < minDist) {
-                    // Resolve overlap
+                if(dist < min) {
                     let angle = Math.atan2(dy, dx);
-                    let targetX = b.x + Math.cos(angle) * minDist;
-                    let targetY = b.y + Math.sin(angle) * minDist;
-                    let ax = (targetX - b2.x) * 0.5;
-                    let ay = (targetY - b2.y) * 0.5;
+                    let tx = b.x + Math.cos(angle) * min;
+                    let ty = b.y + Math.sin(angle) * min;
+                    let ax = (tx - b2.x) * 0.4;
+                    let ay = (ty - b2.y) * 0.4;
                     b.vx -= ax; b.vy -= ay;
                     b2.vx += ax; b2.vy += ay;
                 }
             }
         }
-        if(entities.length > 200) entities.shift();
+        if(entities.length > 150) entities.shift();
         document.getElementById('obj-count').innerText = entities.length;
     }
 
@@ -218,9 +224,9 @@
             ctx.translate(b.x, b.y);
             ctx.rotate(b.rot);
             ctx.fillStyle = currentTheme.primary;
-            ctx.strokeStyle = currentTheme.vir;
-            ctx.lineWidth = 2;
-            drawShape(ctx, b);
+            ctx.strokeStyle = currentTheme.secondary;
+            ctx.lineWidth = 3;
+            drawPolygon(ctx, b);
             ctx.restore();
         });
     }
