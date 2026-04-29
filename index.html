@@ -2,29 +2,29 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Physics-16 // LUMINA</title>
-    <style>
+    <title>Physics-16 // STYLE-SHIFTER</title>
+    <style id="dynamic-css">
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
-        body { margin: 0; background: #010103; overflow: hidden; font-family: 'Orbitron', sans-serif; cursor: crosshair; }
-        #crt { position: fixed; inset: 0; pointer-events: none; z-index: 1000; background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.05) 50%), linear-gradient(90deg, rgba(255,0,0,0.02), rgba(0,255,0,0.01), rgba(0,0,255,0.02)); background-size: 100% 3px, 3px 100%; }
-        canvas { display: block; transition: filter 0.6s ease; }
-        #dashboard { position: fixed; bottom: 0; left: 0; width: 100%; height: 120px; background: rgba(2,2,8,0.98); border-top: 2px solid #00f2ff; display: flex; align-items: center; justify-content: space-around; padding: 0 20px; box-sizing: border-box; z-index: 500; }
-        .stat-panel { color: #00f2ff; text-align: center; min-width: 120px; }
-        .stat-label { font-size: 9px; text-transform: uppercase; opacity: 0.6; margin-bottom: 4px; }
-        .stat-value { font-size: 18px; font-weight: bold; text-shadow: 0 0 8px #00f2ff; }
+        :root { --accent: #00f2ff; --bg: #010103; --panel: rgba(2, 2, 8, 0.98); }
+        body { margin: 0; background: var(--bg); overflow: hidden; font-family: 'Orbitron', sans-serif; cursor: crosshair; transition: background 0.5s; }
+        #crt { position: fixed; inset: 0; pointer-events: none; z-index: 1000; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.05) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02)); background-size: 100% 3px, 3px 100%; }
+        canvas { display: block; transition: filter 0.5s; }
+        #dashboard { position: fixed; bottom: 0; left: 0; width: 100%; height: 120px; background: var(--panel); border-top: 2px solid var(--accent); display: flex; align-items: center; justify-content: space-around; padding: 0 20px; box-sizing: border-box; z-index: 500; transition: all 0.5s; }
+        .stat-panel { color: var(--accent); text-align: center; min-width: 120px; }
+        .stat-label { font-size: 9px; text-transform: uppercase; opacity: 0.6; }
+        .stat-value { font-size: 18px; font-weight: bold; text-shadow: 0 0 8px var(--accent); }
         .ability-bar { display: flex; gap: 6px; }
-        .ability-slot { width: 52px; height: 58px; border: 1px solid #00f2ff; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #00f2ff; font-size: 7px; transition: 0.1s; background: rgba(0,242,255,0.03); }
-        .ability-slot.active { background: #00f2ff; color: #000; box-shadow: 0 0 15px #00f2ff; }
-        .ultimate { border-color: #ff00ff; color: #ff00ff; font-weight: bold; }
+        .ability-slot { width: 52px; height: 58px; border: 1px solid var(--accent); display: flex; align-items: center; justify-content: center; flex-direction: column; color: var(--accent); font-size: 7px; background: rgba(0, 242, 255, 0.03); transition: all 0.3s; }
+        .ability-slot.active { background: var(--accent); color: #000; box-shadow: 0 0 15px var(--accent); }
         #hint { font-size: 10px; color: #00ff41; position: absolute; top: -25px; width: 100%; text-align: center; font-weight: bold; }
     </style>
 </head>
 <body>
 <div id="crt"></div>
 <div id="dashboard">
-    <div id="hint">[0] NEW LIGHTING STYLE | [R] RESET LOOK | [C] CLEAR | [+/-] SIDES</div>
-    <div class="stat-panel"><div class="stat-label">STYLE</div><div class="stat-value" id="style-name">NEON</div></div>
-    <div class="ability-bar">
+    <div id="hint">[0] NEW STYLE | [R] RESTORE CSS | [C] CLEAR | [+/-] SIDES</div>
+    <div class="stat-panel"><div class="stat-label">SIDES</div><div class="stat-value" id="side-count">4</div></div>
+    <div class="ability-bar" id="bar">
         <div class="ability-slot" id="a1"><span>1</span>SPRAY</div>
         <div class="ability-slot" id="a2"><span>2</span>FLOAT</div>
         <div class="ability-slot" id="a3"><span>3</span>STOP</div>
@@ -34,7 +34,7 @@
         <div class="ability-slot" id="a7"><span>7</span>TELE</div>
         <div class="ability-slot" id="a8"><span>8</span>MIX</div>
         <div class="ability-slot" id="a9" style="color:#ff0055; border-color:#ff0055;"><span>9</span>NUKE</div>
-        <div class="ability-slot ultimate" id="a0"><span>0</span>LIGHT</div>
+        <div class="ability-slot" id="a0" style="border-color:#ff00ff; color:#ff00ff;"><span>0</span>STYLE</div>
     </div>
     <div class="stat-panel"><div class="stat-label">PARTS</div><div class="stat-value" id="count">0</div></div>
 </div>
@@ -48,8 +48,7 @@ canvas.width = window.innerWidth; canvas.height = window.innerHeight - 120;
 
 let entities = [], shocks = [], mines = [];
 let activeSlot = 4, polySides = 4, gravity = 0.6, mouse = {x:0, y:0};
-let visualMode = 0; // 0: Neon, 1: Glass, 2: Wireframe, 3: Retro Flat
-const styles = ["NEON", "GLASS", "WIRE", "FLAT"];
+let styleMode = "default"; // "default" or "chaos"
 
 function sfx(freq, type, dur, vol=0.1) {
     try {
@@ -69,15 +68,10 @@ window.oncontextmenu = e => { e.preventDefault(); shockwave(e.clientX, e.clientY
 window.onmousedown = e => {
     if(audioCtx.state === 'suspended') audioCtx.resume();
     if(e.button !== 0 || e.clientY > canvas.height) return;
-    if(activeSlot === 1) { for(let i=0; i<15; i++) spawn(e.clientX, e.clientY, true); sfx(300, 'square', 0.2); }
+    if(activeSlot === 0) { randomizeStyle(); }
+    else if(activeSlot === 1) { for(let i=0; i<15; i++) spawn(e.clientX, e.clientY, true); sfx(300, 'square', 0.2); }
     else if(activeSlot === 6) { mines.push({x: e.clientX, y: e.clientY, r: 20}); sfx(200, 'sine', 0.1); }
     else if(activeSlot === 9) { shockwave(e.clientX, e.clientY, 2500, 150); sfx(60, 'sawtooth', 1.2, 0.4); }
-    else if(activeSlot === 0) { 
-        visualMode = (visualMode + 1) % styles.length;
-        document.getElementById('style-name').innerText = styles[visualMode];
-        canvas.style.filter = `hue-rotate(${Math.random()*360}deg) saturate(${1 + Math.random()*2})`;
-        sfx(40, 'square', 0.8, 0.3);
-    }
     else { spawn(e.clientX, e.clientY); sfx(600, 'sine', 0.05); }
 };
 
@@ -88,11 +82,39 @@ window.onkeydown = e => {
         activeSlot = parseInt(k); document.getElementById('a'+k).classList.add('active');
         sfx(800, 'sine', 0.05);
     }
-    if(k === 'r') { visualMode = 0; canvas.style.filter = "none"; gravity = 0.6; document.getElementById('style-name').innerText = styles[0]; sfx(1000, 'sine', 0.2); }
+    if(k === 'r') restoreDefaultStyle();
     if(k === 'c') { entities = []; mines = []; shocks = []; sfx(50, 'square', 0.5); }
-    if(k === '+' || k === '=') { polySides = Math.min(20, polySides + 1); sfx(1000, 'sine', 0.02); }
-    if(k === '-' || k === '_') { polySides = Math.max(3, polySides - 1); sfx(800, 'sine', 0.02); }
+    if(k === '+' || k === '=') { polySides = Math.min(20, polySides + 1); document.getElementById('side-count').innerText = polySides; }
+    if(k === '-' || k === '_') { polySides = Math.max(3, polySides - 1); document.getElementById('side-count').innerText = polySides; }
 };
+
+function randomizeStyle() {
+    styleMode = "chaos";
+    const rH = Math.random() * 360;
+    const rC = `hsl(${rH}, 100%, 50%)`;
+    const rBG = `hsl(${(rH + 180) % 360}, 30%, 5%)`;
+    
+    // Update CSS variables dynamically
+    document.documentElement.style.setProperty('--accent', rC);
+    document.documentElement.style.setProperty('--bg', rBG);
+    document.documentElement.style.setProperty('--panel', `rgba(${Math.random()*20},${Math.random()*20},${Math.random()*30}, 0.9)`);
+    
+    // Update Canvas Visuals
+    canvas.style.filter = `saturate(${Math.random()*4}) hue-rotate(${Math.random()*360}deg) contrast(${1 + Math.random()})`;
+    gravity = (Math.random() - 0.2) * 2;
+    
+    sfx(40, 'square', 1, 0.3);
+}
+
+function restoreDefaultStyle() {
+    styleMode = "default";
+    document.documentElement.style.setProperty('--accent', '#00f2ff');
+    document.documentElement.style.setProperty('--bg', '#010103');
+    document.documentElement.style.setProperty('--panel', 'rgba(2, 2, 8, 0.98)');
+    canvas.style.filter = "saturate(1.5) contrast(1.1) brightness(1.1)";
+    gravity = 0.6;
+    sfx(1000, 'sine', 0.2);
+}
 
 function spawn(x, y, burst=false) {
     if(entities.length > 5000) entities.shift();
@@ -114,14 +136,12 @@ function update() {
         if(activeSlot === 5) { let dx = mouse.x - b.x, dy = mouse.y - b.y, d = Math.hypot(dx, dy); b.vx += dx/d * 1.8; b.vy += dy/d * 1.8; }
         if(activeSlot === 7 && b.y > canvas.height - 30) b.y = 30;
         if(activeSlot === 8) { b.vx += (Math.random()-0.5)*18; b.vy += (Math.random()-0.5)*18; }
-        
         b.vy += gravity; b.x += b.vx; b.y += b.vy; b.rot += b.vr; b.vx *= 0.985; b.vy *= 0.985;
         if(b.y > canvas.height - b.size/2) { b.y = canvas.height - b.size/2; b.vy *= -0.7; }
         if(b.y < b.size/2) { b.y = b.size/2; b.vy *= -0.7; }
         if(b.x > canvas.width - b.size/2) { b.x = canvas.width - b.size/2; b.vx *= -0.7; }
         if(b.x < b.size/2) { b.x = b.size/2; b.vx *= -0.7; }
-
-        mines.forEach((m, mi) => { if(Math.hypot(b.x-m.x, b.y-m.y) < b.size/2 + m.r) { shockwave(m.x, m.y, 650, 75); mines.splice(mi, 1); sfx(70, 'sawtooth', 0.7); } });
+        mines.forEach((m, mi) => { if(Math.hypot(b.x-m.x, b.y-m.y) < b.size/2 + m.r) { shockwave(m.x, m.y, 650, 75); mines.splice(mi, 1); sfx(70, 'sawtooth', 0.7, 0.2); } });
         for(let j=i+1; j<entities.length; j++){
             let b2 = entities[j], dx = b2.x-b.x, dy = b2.y-b.y, d = Math.hypot(dx,dy), min = (b.size+b2.size)/2;
             if(d < min) { let ang = Math.atan2(dy,dx), tx = b.x+Math.cos(ang)*min, ty = b.y+Math.sin(ang)*min; let ax = (tx-b2.x)*0.5, ay = (ty-b2.y)*0.5; b.vx -= ax; b.vy -= ay; b2.vx += ax; b2.vy += ay; }
@@ -132,36 +152,16 @@ function update() {
 }
 
 function draw() {
-    ctx.fillStyle = '#010103'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    shocks.forEach(s => { ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.strokeStyle = `rgba(0, 242, 255, ${1 - s.r/s.max})`; ctx.lineWidth = 4; ctx.stroke(); });
-
+    ctx.fillStyle = getComputedStyle(document.body).backgroundColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    mines.forEach(m => { ctx.fillStyle = '#ff0055'; ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, Math.PI*2); ctx.fill(); });
+    shocks.forEach(s => { ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent'); ctx.lineWidth = 4; ctx.stroke(); });
     entities.forEach(b => {
         ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot);
         let color = `hsl(${b.hue}, 100%, 60%)`;
-        
-        if(visualMode === 0) { // NEON
-            ctx.shadowBlur = 12; ctx.shadowColor = color;
-            ctx.fillStyle = color; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
-        } else if(visualMode === 1) { // GLASS
-            ctx.fillStyle = `hsla(${b.hue}, 100%, 60%, 0.3)`;
-            ctx.strokeStyle = `hsla(${b.hue}, 100%, 100%, 0.8)`;
-            ctx.lineWidth = 3;
-        } else if(visualMode === 2) { // WIREFRAME
-            ctx.fillStyle = "transparent";
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 1;
-        } else if(visualMode === 3) { // RETRO FLAT
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = color;
-            ctx.strokeStyle = "#000";
-            ctx.lineWidth = 4;
-        }
-
-        ctx.beginPath();
-        for(let i=0; i<b.sides; i++){
-            let a = i/b.sides*Math.PI*2, px = Math.cos(a)*b.size/2, py = Math.sin(a)*b.size/2;
-            if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
-        }
+        ctx.fillStyle = color; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+        if(styleMode === "default") { ctx.shadowBlur = 10; ctx.shadowColor = color; }
+        ctx.beginPath(); for(let i=0; i<b.sides; i++){ let a = i/b.sides*Math.PI*2, px = Math.cos(a)*b.size/2, py = Math.sin(a)*b.size/2; if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py); }
         ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
     });
 }
